@@ -446,6 +446,14 @@ Node* selection(Node* node)
 	}
 }
 
+Node simulation(Node* node)
+{
+	/*
+		todo
+		模拟到终止节点
+	*/
+}
+
 void backUp(Node* node)
 {
 	/*
@@ -544,11 +552,16 @@ int main()
  
 determined:
 	*/
-
+	Node* root = getnode(NULL, currBotColor, -1, -1, -1, block.blockType, 0);
+	Node* node = root;
 	while (clock() - begin_time <= 850)
 	{
+		node = selection(root);
+		Node result = simulation(node);
+		backUp(result);
 		/*
 			todo
+			还原棋盘
 		*/
 	}
 
