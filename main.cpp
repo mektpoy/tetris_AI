@@ -26,7 +26,7 @@ int enemyColor;
 int gridInfo[2][MAPHEIGHT + 2][MAPWIDTH + 2] = { 0 };
  
 // 代表分别向对方转移的行
-int trans[2][4][MAPWIDTH + 2] = { 0 };
+int trans[2][6][MAPWIDTH + 2] = { 0 };
  
 // 转移行数
 int transCount[2] = { 0 };
@@ -152,16 +152,16 @@ public:
  
 			if (fromO == o)
 				break;
-	            
-	        // 检查旋转碰撞
-	        for (i = 0; i < 5; i++) {
-	            blankX = blockX + rotateBlank[blockType][fromO][2 * i];
-	            blankY = blockY + rotateBlank[blockType][fromO][2 * i + 1];
-	            if (blankX == blockX && blankY == blockY)
-	                break;
-	            if (gridInfo[color][blankY][blankX] != 0)
-	                return false;
-	        }
+				
+			// 检查旋转碰撞
+			for (i = 0; i < 5; i++) {
+				blankX = blockX + rotateBlank[blockType][fromO][2 * i];
+				blankY = blockY + rotateBlank[blockType][fromO][2 * i + 1];
+				if (blankX == blockX && blankY == blockY)
+					break;
+				if (gridInfo[color][blankY][blankX] != 0)
+					return false;
+			}
  
 			fromO = (fromO + 1) % 4;
 		}
@@ -355,11 +355,110 @@ namespace Util
 }
  
  
+struct Node
+{
+	node* pa;
+	vector <node*> son;
+	int player;
+	int type, total, wins;
+	int x, y, o, blockType;
+}touse[400000];
+int touseptr;
+
+Node* getnode(Node* pa, int player, int x, int y, int o, int blockType, int type)
+{
+	Node* ret = touse + (touseptr ++);
+	ret->pa = pa;
+	ret->player = player;
+	ret->x = x;
+	ret->y = y;
+	ret->o = o;
+	ret->blockType = blockType;
+	ret->type = type;
+	return ret;
+}
+
+double ucb1 (Node* node)
+{
+	if (node->total == 0) return 1e30;
+	return 1.0 * node->wins / node->total + sqrt(1.96 * log(node->pa->total) / node-total);
+}
+
+Node* get_max_son(Node *node)
+{
+	Node* ret;
+	double MAX = -1e30;
+	for (int i = 0; i < node->son.size(); i ++)
+	{
+		double val = ucb1(node->son[i]);
+		if (val > MAX)
+		{
+			ret = node->son[i];
+			MAX = val;
+		}
+	}
+	return ret;
+}
+
+Node* selection(Node* node)
+{
+	while(true)
+	{
+		if (!canPut(node->player))
+		{
+			return node;
+		}
+		if (node->son.size() == 0)
+		{
+			if (node->type == 0)
+				for (int y = 1; y <= MAPHEIGHT; y++)
+					for (int x = 1; x <= MAPWIDTH; x++)
+						for (int o = 0; o < 4; o++)
+						{
+							if (block.set(x, y, o).isValid() &&
+								Util::checkDirectDropTo(currBotColor, block.blockType, x, y, o))
+							{
+								Node* tmpNode = getnode(node, !node->player, x, y, o, block.blockType, 1);
+								node->son.push_back(tmpNode);
+							}
+						}
+			else
+			{
+				for (int i = 0; i < 7; i ++)
+				{
+					Node* tmpNode = getnode(node, !node->player, 0, 0, 0, i, 0);
+					node->son.push_back(tmpNode);
+				}
+			}
+			int id = rand() % node->son.size();
+			node = node->son[id];
+			/* 
+				todo
+				更新局面情况
+			*/
+			return node;
+		}
+		node = get_max_son(node);
+		/* 
+			todo
+			更新局面情况
+		*/
+	}
+}
+
+void backUp(Node* node)
+{
+	/*
+		todo
+	*/
+}
+
 int main()
 {
 	// 加速输入
 	istream::sync_with_stdio(false);
 	srand(time(NULL));
+	int begin_time = clock();
 	init();
  
 	int turnID, blockType;
@@ -428,6 +527,7 @@ int main()
 	// 贪心决策
 	// 从下往上以各种姿态找到第一个位置，要求能够直着落下
 	Tetris block(nextTypeForColor[currBotColor], currBotColor);
+	/*
 	for (int y = 1; y <= MAPHEIGHT; y++)
 		for (int x = 1; x <= MAPWIDTH; x++)
 			for (int o = 0; o < 4; o++)
@@ -443,8 +543,18 @@ int main()
 			}
  
 determined:
+	*/
+
+	while (clock() - begin_time <= 850)
+	{
+		/*
+			todo
+		*/
+	}
+
 	// 再看看给对方什么好
  
+ /*
 	int maxCount = 0, minCount = 99;
 	for (int i = 0; i < 7; i++)
 	{
@@ -464,7 +574,7 @@ determined:
 	{
 		blockForEnemy = rand() % 7;
 	}
- 
+ */
 	// 决策结束，输出结果（你只需修改以上部分）
  
 	cout << blockForEnemy << " " << finalX << " " << finalY << " " << finalO;
