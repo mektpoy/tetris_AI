@@ -549,9 +549,10 @@ int main()
 					goto determined;
 				}
 			}
- 
+ 	
 determined:
 	*/
+ 	// orz crz
 	Node* root = getnode(NULL, currBotColor, -1, -1, -1, block.blockType, 0);
 	Node* node = root;
 	while (clock() - begin_time <= 850)
