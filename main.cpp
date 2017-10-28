@@ -24,32 +24,37 @@ int enemyColor;
  
 // 先y后x，记录地图状态，0为空，1为以前放置，2为刚刚放置，负数为越界
 // （2用于在清行后将最后一步撤销再送给对方）
-int Grid[2][MAPHEIGHT + 2][MAPWIDTH + 2] = { 0 };
+int temp_gridInfo[2][MAPHEIGHT + 2][MAPWIDTH + 2] = { 0 };
 int gridInfo[2][MAPHEIGHT + 2][MAPWIDTH + 2] = { 0 };
  
 // 代表分别向对方转移的行
+int temp_trans[2][6][MAPWIDTH + 2] = { 0 };
 int trans[2][6][MAPWIDTH + 2] = { 0 };
  
 // 转移行数
+int temp_transCount[2] = { 0 };
 int transCount[2] = { 0 };
 
-int nextColor[2];
+int temp_nextTypeForColor[2];
 int nextTypeForColor[2];
  
 // 运行eliminate后的当前高度
+int temp_maxHeight[2] = { 0 };
 int maxHeight[2] = { 0 };
  
 // 总消去行数的分数之和
+int temp_elimTotal[2] = { 0 };
 int elimTotal[2] = { 0 };
 
 // 连续几回合发生过消去了
+int temp_elimCombo[2] = { 0 };
 int elimCombo[2] = { 0 };
  
 // 一次性消去行数对应分数
 const int elimBonus[] = { 0, 1, 3, 5, 7 };
  
 // 给对应玩家的各类块的数目总计
-int ColorCount[2][7] = { 0 };
+int temp_typeCountForColor[2][7] = { 0 };
 int typeCountForColor[2][7] = { 0 };
  
 const int blockShape[7][4][8] = {
@@ -441,6 +446,7 @@ inline int updategame(Node *node)
 		{
 			nextTypeForColor[node->player] = node->pa->blockType;
 		}
+		Util::eliminate(node->player);
 	}
 	else
 	{
@@ -451,8 +457,6 @@ inline int updategame(Node *node)
 	}
 	if (node->player == enemyColor && node->type == 1)
 	{
-		Util::eliminate(0);
-		Util::eliminate(1);
 		return Util::transfer();
 	}
 	// return -1;
@@ -517,7 +521,7 @@ Node* selection(Node* node)
 			{
 				return node;
 			}
-			int id = rand() % node->son.size();
+			int id = rand() % (int)node->son.size();
 			node = node->son[id];
 
 			updategame(node);
@@ -538,7 +542,7 @@ inline Node* get_rand_son(Node *node)
 	extend_son(node);
 
 	if (node->son.size() == 0) return NULL;
-	int id = rand() % node->son.size();
+	int id = rand() % (int)node->son.size();
 	ret = node->son[id];
 
 	return ret;
@@ -640,10 +644,14 @@ int main()
 		// 进行转移
 		Util::transfer();
 	}
- 
- 	memcpy(Grid,gridInfo,sizeof(gridInfo));
- 	memcpy(ColorCount,typeCountForColor,sizeof(typeCountForColor));
- 	memcpy(nextColor, nextTypeForColor, sizeof(nextTypeForColor));
+ 	
+ 	memcpy(temp_gridInfo, gridInfo, sizeof(gridInfo));
+ 	memcpy(temp_typeCountForColor, typeCountForColor, sizeof(typeCountForColor));
+ 	memcpy(temp_nextTypeForColor, nextTypeForColor, sizeof(nextTypeForColor));
+ 	memcpy(temp_trans, trans, sizeof(trans));
+ 	memcpy(temp_elimCombo, elimCombo, sizeof(elimCombo));
+ 	memcpy(temp_elimTotal, elimTotal, sizeof(elimTotal));
+ 	memcpy(temp_maxHeight, maxHeight, sizeof(maxHeight));
 
 	int blockForEnemy, finalX, finalY, finalO;
  
@@ -681,9 +689,13 @@ determined:
 		int result = simulation(node);
 		backUp(node, result);
 
- 		memcpy(gridInfo, Grid, sizeof(Grid));
- 		memcpy(typeCountForColor, ColorCount, sizeof(ColorCount));
- 		memcpy(nextTypeForColor, nextColor, sizeof(nextColor));
+ 		memcpy(gridInfo, temp_gridInfo, sizeof(gridInfo));
+	 	memcpy(typeCountForColor, temp_typeCountForColor, sizeof(typeCountForColor));
+	 	memcpy(nextTypeForColor, temp_nextTypeForColor, sizeof(nextTypeForColor));
+	 	memcpy(trans, temp_trans, sizeof(trans));
+	 	memcpy(elimCombo, temp_elimCombo, sizeof(elimCombo));
+	 	memcpy(elimTotal, temp_elimTotal, sizeof(elimTotal));
+	 	memcpy(maxHeight, temp_maxHeight, sizeof(maxHeight));
 	}
 
 	node = get_max_son_ucb(root);
