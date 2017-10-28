@@ -23,6 +23,7 @@ int enemyColor;
  
 // 先y后x，记录地图状态，0为空，1为以前放置，2为刚刚放置，负数为越界
 // （2用于在清行后将最后一步撤销再送给对方）
+int Grid[2][MAPHEIGHT + 2][MAPWIDTH + 2] = { 0 };
 int gridInfo[2][MAPHEIGHT + 2][MAPWIDTH + 2] = { 0 };
  
 // 代表分别向对方转移的行
@@ -44,6 +45,7 @@ int elimCombo[2] = { 0 };
 const int elimBonus[] = { 0, 1, 3, 5, 7 };
  
 // 给对应玩家的各类块的数目总计
+int ColorCount[2][7] = { 0 };
 int typeCountForColor[2][7] = { 0 };
  
 const int blockShape[7][4][8] = {
@@ -400,6 +402,50 @@ Node* get_max_son(Node *node)
 	return ret;
 }
 
+//根据node给予的决策更新游戏局面
+
+inline int updategame(Node *node)
+{
+	Tetris block(node->blockType,node->player);
+	if (node->type == 1)
+	{
+		block.set(node->x,node->y,node->o).place();
+	}
+	if (node->player == enemyColor && node->type == 1)
+	{
+		Util::eliminate(0);
+		Util::eliminate(1);
+		return Util::transfer();
+	}
+}
+
+//扩展当前节点的所有儿子
+
+inline void extend_son(Node *&node)
+{
+	if (node-son.size()) return;
+	if (node->type == 0)
+		for (int y = 1; y <= MAPHEIGHT; y++)
+			for (int x = 1; x <= MAPWIDTH; x++)
+				for (int o = 0; o < 4; o++)
+				{
+					if (block.set(x, y, o).isValid() &&
+						Util::checkDirectDropTo(currBotColor, block.blockType, x, y, o))
+					{
+						Node* tmpNode = getnode(node, !node->player, x, y, o, block.blockType, 1);
+						node->son.push_back(tmpNode);
+					}
+				}
+	else
+	{
+		for (int i = 0; i < 7; i ++)
+		{
+			Node* tmpNode = getnode(node, !node->player, 0, 0, 0, i, 0);
+			node->son.push_back(tmpNode);
+		}
+	}
+}
+
 Node* selection(Node* node)
 {
 	while(true)
@@ -410,55 +456,57 @@ Node* selection(Node* node)
 		}
 		if (node->son.size() == 0)
 		{
-			if (node->type == 0)
-				for (int y = 1; y <= MAPHEIGHT; y++)
-					for (int x = 1; x <= MAPWIDTH; x++)
-						for (int o = 0; o < 4; o++)
-						{
-							if (block.set(x, y, o).isValid() &&
-								Util::checkDirectDropTo(currBotColor, block.blockType, x, y, o))
-							{
-								Node* tmpNode = getnode(node, !node->player, x, y, o, block.blockType, 1);
-								node->son.push_back(tmpNode);
-							}
-						}
-			else
-			{
-				for (int i = 0; i < 7; i ++)
-				{
-					Node* tmpNode = getnode(node, !node->player, 0, 0, 0, i, 0);
-					node->son.push_back(tmpNode);
-				}
-			}
+			extend_son(node);
+
 			int id = rand() % node->son.size();
 			node = node->son[id];
-			/* 
-				todo
-				更新局面情况
-			*/
+
+			updategame(node);
+
 			return node;
 		}
 		node = get_max_son(node);
-		/* 
-			todo
-			更新局面情况
-		*/
+
+		updategame(node);
+
+		return node;
 	}
 }
 
-Node simulation(Node* node)
+inline Node* get_rand_son(Node *node)
 {
-	/*
-		todo
-		模拟到终止节点
-	*/
+	extend_son(node);
+
+	int id = rand() % node->son.size();
+	node = node->son[id];
+
+	return node;
+
 }
 
-void backUp(Node* node)
+//从node开始模拟到终止节点
+
+inline int simulation(Node* node)
 {
-	/*
-		todo
-	*/
+	Node* nxt;
+	int result = -1;
+	while (result = -1)
+	{
+		nxt = get_rand_son(node);
+		int result = updategame(nxt);
+		node = nxt;
+	}
+	return result;
+}
+
+inline void backUp(Node* node,int result)
+{
+	while (node != NULL)
+	{
+		node->wins += result;
+		result = node->type == 0 ? -result : result;
+		node = node->pa;
+	}
 }
 
 int main()
@@ -524,7 +572,9 @@ int main()
 		Util::transfer();
 	}
  
- 
+ 	memcpy(Grid,gridInfo,sizeof(gridInfo));
+ 	memcpy(ColorCount,typeCountForColor,sizeof(typeCountForColor));
+
 	int blockForEnemy, finalX, finalY, finalO;
  
 	// 做出决策（你只需修改以下部分）
@@ -558,15 +608,21 @@ determined:
 	while (clock() - begin_time <= 850)
 	{
 		node = selection(root);
-		Node result = simulation(node);
-		backUp(result);
-		// orz CRZ
-		/*
-			todo
-			还原棋盘
-		*/
+		int result = simulation(node);
+		backUp(node,result);
+
+ 		memcpy(gridInfo,Grid,sizeof(Grid));
+ 		memcpy(typeCountForColor,ColorCount,sizeof(ColorCount));
 	}
 
+	node = selection(root);
+	finalX = node->x;
+	finalY = node->y;
+	finalO = node->o;
+	node = selection(node);
+	node = selection(node);
+	node = selection(node);
+	blockForEnemy = node(type);
 	// 再看看给对方什么好
  
  /*
