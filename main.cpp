@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <ctime>
+#include <cstring>
 using namespace std;
  
 #define MAPWIDTH 10
@@ -31,6 +32,9 @@ int trans[2][6][MAPWIDTH + 2] = { 0 };
  
 // 转移行数
 int transCount[2] = { 0 };
+
+int nextColor[2];
+int nextTypeForColor[2];
  
 // 运行eliminate后的当前高度
 int maxHeight[2] = { 0 };
@@ -359,8 +363,8 @@ namespace Util
  
 struct Node
 {
-	node* pa;
-	vector <node*> son;
+	Node* pa;
+	vector <Node*> son;
 	int player;
 	int type, total, wins;
 	int x, y, o, blockType;
@@ -383,12 +387,12 @@ Node* getnode(Node* pa, int player, int x, int y, int o, int blockType, int type
 double ucb1 (Node* node)
 {
 	if (node->total == 0) return 1e30;
-	return 1.0 * node->wins / node->total + sqrt(1.96 * log(node->pa->total) / node-total);
+	return 1.0 * node->wins / node->total + sqrt(1.96 * log(node->pa->total) / node->total);
 }
 
 Node* get_max_son(Node *node)
 {
-	Node* ret;
+	Node* ret = NULL;
 	double MAX = -1e30;
 	for (int i = 0; i < node->son.size(); i ++)
 	{
@@ -402,14 +406,48 @@ Node* get_max_son(Node *node)
 	return ret;
 }
 
+double ucb (Node* node)
+{
+	if (node->total == 0) return 1e30;
+	return 1.0 * node->wins / node->total;
+}
+
+Node* get_max_son_ucb(Node *node)
+{
+	Node* ret = NULL;
+	double MAX = -1e30;
+	for (int i = 0; i < node->son.size(); i ++)
+	{
+		double val = ucb(node->son[i]);
+		if (val > MAX)
+		{
+			ret = node->son[i];
+			MAX = val;
+		}
+	}
+	return ret;
+}
+
 //根据node给予的决策更新游戏局面
 
 inline int updategame(Node *node)
 {
-	Tetris block(node->blockType,node->player);
 	if (node->type == 1)
 	{
+		Tetris block(node->blockType, node->player);
+		typeCountForColor[node->player][node->blockType] ++;
 		block.set(node->x,node->y,node->o).place();
+		if(node->player == enemyColor)
+		{
+			nextTypeForColor[node->player] = node->pa->blockType;
+		}
+	}
+	else
+	{
+		if(node->player == enemyColor)
+		{
+			nextTypeForColor[!node->player] = node->blockType;
+		}
 	}
 	if (node->player == enemyColor && node->type == 1)
 	{
@@ -417,31 +455,53 @@ inline int updategame(Node *node)
 		Util::eliminate(1);
 		return Util::transfer();
 	}
+	// return -1;
 }
 
 //扩展当前节点的所有儿子
 
 inline void extend_son(Node *&node)
 {
-	if (node-son.size()) return;
+	if (node->son.size()) return;
 	if (node->type == 0)
 		for (int y = 1; y <= MAPHEIGHT; y++)
 			for (int x = 1; x <= MAPWIDTH; x++)
 				for (int o = 0; o < 4; o++)
 				{
-					if (block.set(x, y, o).isValid() &&
-						Util::checkDirectDropTo(currBotColor, block.blockType, x, y, o))
+					Tetris block(nextTypeForColor[!node->player], !node->player);
+					if (block.set(x, y, o).onGround() &&
+						Util::checkDirectDropTo(!node->player, nextTypeForColor[!node->player], x, y, o))
 					{
-						Node* tmpNode = getnode(node, !node->player, x, y, o, block.blockType, 1);
+						Node* tmpNode = getnode(node, !node->player, x, y, o, nextTypeForColor[!node->player], !node->type);
 						node->son.push_back(tmpNode);
 					}
 				}
 	else
 	{
-		for (int i = 0; i < 7; i ++)
+		int maxCount = 0, minCount = 99;
+		for (int i = 0; i < 7; i++)
 		{
-			Node* tmpNode = getnode(node, !node->player, 0, 0, 0, i, 0);
-			node->son.push_back(tmpNode);
+			if (typeCountForColor[!node->player][i] > maxCount)
+				maxCount = typeCountForColor[!node->player][i];
+			if (typeCountForColor[!node->player][i] < minCount)
+				minCount = typeCountForColor[!node->player][i];
+		}
+		if (maxCount - minCount == 2)
+		{
+			for (int i = 0; i < 7; i++)
+				if (typeCountForColor[!node->player][i] != maxCount)
+				{
+					Node* tmpNode = getnode(node, node->player, -1, -1, -1, i, !node->type);
+					node->son.push_back(tmpNode);
+				}
+		}
+		else
+		{
+			for (int i = 0; i < 7; i ++)
+			{
+				Node* tmpNode = getnode(node, node->player, -1, -1, -1, i, !node->type);
+				node->son.push_back(tmpNode);
+			}
 		}
 	}
 }
@@ -450,14 +510,13 @@ Node* selection(Node* node)
 {
 	while(true)
 	{
-		if (!canPut(node->player))
-		{
-			return node;
-		}
 		if (node->son.size() == 0)
 		{
 			extend_son(node);
-
+			if (node->son.size() == 0)
+			{
+				return node;
+			}
 			int id = rand() % node->son.size();
 			node = node->son[id];
 
@@ -469,18 +528,20 @@ Node* selection(Node* node)
 
 		updategame(node);
 
-		return node;
+		if (node->total == 0) return node;
 	}
 }
 
 inline Node* get_rand_son(Node *node)
 {
+	Node *ret;
 	extend_son(node);
 
+	if (node->son.size() == 0) return NULL;
 	int id = rand() % node->son.size();
-	node = node->son[id];
+	ret = node->son[id];
 
-	return node;
+	return ret;
 
 }
 
@@ -490,21 +551,30 @@ inline int simulation(Node* node)
 {
 	Node* nxt;
 	int result = -1;
-	while (result = -1)
+	if (node->son.size() == 0)
+	{
+		return !node->player;
+	}
+	while (result == -1)
 	{
 		nxt = get_rand_son(node);
-		int result = updategame(nxt);
+		if (nxt == NULL)
+		{
+			result = !node->player;
+			break;
+		}
+		result = updategame(nxt);
 		node = nxt;
 	}
 	return result;
 }
 
-inline void backUp(Node* node,int result)
+inline void backUp(Node* node, int result)
 {
 	while (node != NULL)
 	{
-		node->wins += result;
-		result = node->type == 0 ? -result : result;
+		node->wins += (result ^ node->player);
+		node->total ++;
 		node = node->pa;
 	}
 }
@@ -514,11 +584,10 @@ int main()
 	// 加速输入
 	istream::sync_with_stdio(false);
 	srand(time(NULL));
-	int begin_time = clock();
+	double begin_time = clock();
 	init();
  
 	int turnID, blockType;
-	int nextTypeForColor[2];
 	cin >> turnID;
  
 	// 先读入第一回合，得到自己的颜色
@@ -574,6 +643,7 @@ int main()
  
  	memcpy(Grid,gridInfo,sizeof(gridInfo));
  	memcpy(ColorCount,typeCountForColor,sizeof(typeCountForColor));
+ 	memcpy(nextColor, nextTypeForColor, sizeof(nextTypeForColor));
 
 	int blockForEnemy, finalX, finalY, finalO;
  
@@ -602,27 +672,28 @@ int main()
  	
 determined:
 	*/
- 	// orz crz
-	Node* root = getnode(NULL, currBotColor, -1, -1, -1, block.blockType, 0);
+	Node* root = getnode(NULL, enemyColor, -1, -1, -1, block.blockType, 0);
 	Node* node = root;
-	while (clock() - begin_time <= 850)
+	while ((clock() - begin_time) / CLOCKS_PER_SEC <= 0.85)
 	{
+		
 		node = selection(root);
 		int result = simulation(node);
-		backUp(node,result);
+		backUp(node, result);
 
- 		memcpy(gridInfo,Grid,sizeof(Grid));
- 		memcpy(typeCountForColor,ColorCount,sizeof(ColorCount));
+ 		memcpy(gridInfo, Grid, sizeof(Grid));
+ 		memcpy(typeCountForColor, ColorCount, sizeof(ColorCount));
+ 		memcpy(nextTypeForColor, nextColor, sizeof(nextColor));
 	}
 
-	node = selection(root);
+	node = get_max_son_ucb(root);
+
 	finalX = node->x;
 	finalY = node->y;
 	finalO = node->o;
-	node = selection(node);
-	node = selection(node);
-	node = selection(node);
-	blockForEnemy = node(type);
+
+	node = get_max_son_ucb(node);
+	blockForEnemy = node->blockType;
 	// 再看看给对方什么好
  
  /*
@@ -648,7 +719,9 @@ determined:
  */
 	// 决策结束，输出结果（你只需修改以上部分）
  
-	cout << blockForEnemy << " " << finalX << " " << finalY << " " << finalO;
+	cout << blockForEnemy << " " << finalX << " " << finalY << " " << finalO << endl;
  
+ 	for (int i = 0; i < root->son.size(); i ++)
+ 		printf("{%d %d %d : %d/%d}", root->son[i]->x, root->son[i]->y, root->son[i]->o, root->son[i]->wins, root->son[i]->total);
 	return 0;
 }
