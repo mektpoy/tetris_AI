@@ -133,6 +133,18 @@ public:
 		}
 		return true;
 	}
+
+	inline bool place2()
+	{
+		int i, tmpX, tmpY;
+		for (i = 0; i < 4; i++)
+		{
+			tmpX = blockX + shape[orientation][2 * i];
+			tmpY = blockY + shape[orientation][2 * i + 1];
+			gridInfo[color][tmpY][tmpX] = 0;
+		}
+		return true;
+	}
  
 	// 检查能否逆时针旋转自己到o
 	inline bool rotation(int o)
@@ -353,120 +365,228 @@ namespace Util
 #endif
 	}
 }
- 
- 
-struct Node
-{
-	node* pa;
-	vector <node*> son;
-	int player;
-	int type, total, wins;
-	int x, y, o, blockType;
-}touse[400000];
-int touseptr;
 
-Node* getnode(Node* pa, int player, int x, int y, int o, int blockType, int type)
+int GetLandingHeight(Tetris now) 
 {
-	Node* ret = touse + (touseptr ++);
-	ret->pa = pa;
-	ret->player = player;
-	ret->x = x;
-	ret->y = y;
-	ret->o = o;
-	ret->blockType = blockType;
-	ret->type = type;
-	return ret;
+  return now.blockY;
 }
 
-double ucb1 (Node* node)
+int GetRowsRemoved(int player)
 {
-	if (node->total == 0) return 1e30;
-	return 1.0 * node->wins / node->total + sqrt(1.96 * log(node->pa->total) / node-total);
-}
-
-Node* get_max_son(Node *node)
-{
-	Node* ret;
-	double MAX = -1e30;
-	for (int i = 0; i < node->son.size(); i ++)
+	int ret = 0;
+	for (int i = 1; i <= MAPHEIGHT; i++)
 	{
-		double val = ucb1(node->son[i]);
-		if (val > MAX)
+		int emptyFlag = 1;
+		int fullFlag = 1;
+		for (int j = 1; j <= MAPWIDTH; j++)
 		{
-			ret = node->son[i];
-			MAX = val;
+			if (gridInfo[player][i][j] == 0)
+				fullFlag = 0;
+			else
+				emptyFlag = 0;
+		}
+		if (fullFlag)
+		{
+			ret ++;
 		}
 	}
 	return ret;
 }
 
-Node* selection(Node* node)
+int GetRowTransitions(int player) 
 {
-	while(true)
+	int ret = 0;
+	int last_bit = 1;
+
+	for (int i = 1; i <= MAPHEIGHT; i ++) 
 	{
-		if (!canPut(node->player))
+		int bit;
+		for (int j = 1; j <= MAPWIDTH; j ++)
 		{
-			return node;
-		}
-		if (node->son.size() == 0)
-		{
-			if (node->type == 0)
-				for (int y = 1; y <= MAPHEIGHT; y++)
-					for (int x = 1; x <= MAPWIDTH; x++)
-						for (int o = 0; o < 4; o++)
-						{
-							if (block.set(x, y, o).isValid() &&
-								Util::checkDirectDropTo(currBotColor, block.blockType, x, y, o))
-							{
-								Node* tmpNode = getnode(node, !node->player, x, y, o, block.blockType, 1);
-								node->son.push_back(tmpNode);
-							}
-						}
-			else
+			bit = (gridInfo[player][i][j] > 0);
+			if (bit != last_bit)
 			{
-				for (int i = 0; i < 7; i ++)
+				++ ret;
+			}
+			last_bit = bit;
+		}
+		if (bit == 0) ++ ret;
+		last_bit = 1;
+	}
+	return ret;
+}
+
+/**
+ * The total number of column transitions.
+ * A column transition occurs when an empty cell is adjacent to a filled cell
+ * on the same row and vice versa.
+ */
+
+int GetColumnTransitions(int player) {
+	int ret = 0;
+	int last_bit = 1;
+
+	for (int i = 1; i <= MAPWIDTH; i ++)
+	{
+		int bit;
+		for (int j = 1; j <= MAPHEIGHT; j ++)
+		{
+			bit = (gridInfo[player][j][i] > 0);
+			if (bit != last_bit)
+			{
+				++ ret;
+			}
+			last_bit = bit;
+		}
+		if (bit == 0) ++ ret;
+		last_bit = 1;
+	}
+	return ret;
+}
+
+int GetNumberOfHoles(int player) 
+{
+	int ret = 0;
+	int row_holes = 0x0000;
+	int previous_row = 0;
+	for (int i = 1; i <= MAPWIDTH; i ++)
+	{
+		previous_row = (previous_row << 1) | (gridInfo[player][MAPHEIGHT][i] > 0);
+	}
+
+	for (int i = MAPHEIGHT - 1; i >= 1; i --)
+	{
+		int row = 0;
+		for (int j = 1; j <= MAPWIDTH; j ++)
+			row = (row << 1) | (gridInfo[player][i][j] > 0);
+		row_holes = ~row & (previous_row | row_holes);
+
+		for (int j = 0; j < MAPWIDTH; j ++)
+			ret += ((row_holes >> j) & 1);
+
+		previous_row = row;
+	}
+
+	return ret;
+}
+
+int GetWellSums(int player) 
+{
+	int well_sums = 0;
+	// Check for well cells in the "inner columns" of the board.
+	// "Inner columns" are the columns that aren't touching the edge of the board.
+	int board[21];
+	for (int i = 1; i <= MAPHEIGHT; i ++)
+	{
+		board[i] = 0;
+		for (int j = 1; j <= MAPWIDTH; j ++)
+			board[i] = (board[i] << 1) | (gridInfo[player][i][j] > 0);
+	}
+	for (int i = 1; i < MAPWIDTH - 1; ++i) 
+	{
+		for (int j = MAPHEIGHT - 1; j >= 0; --j) 
+		{
+			if ((((board[j] >> i) & 1) == 0) && 
+			(((board[j] >> (i - 1)) & 1) == 1) &&
+			(((board[j] >> (i + 1)) & 1) == 1)) 
+			{
+
+			// Found well cell, count it + the number of empty cells below it.
+				++ well_sums;
+
+				for (int k = j - 1; k >= 0; --k) 
 				{
-					Node* tmpNode = getnode(node, !node->player, 0, 0, 0, i, 0);
-					node->son.push_back(tmpNode);
+					if (((board[k] >> i) & 1) == 0) 
+					{
+						++well_sums;
+					} 
+					else 
+					{
+						break;
+					}
 				}
 			}
-			int id = rand() % node->son.size();
-			node = node->son[id];
-			/* 
-				todo
-				更新局面情况
-			*/
-			return node;
 		}
-		node = get_max_son(node);
-		/* 
-			todo
-			更新局面情况
-		*/
 	}
+
+	// Check for well cells in the leftmost column of the board.
+	for (int j = MAPWIDTH - 1; j >= 0; --j) 
+	{
+		if ((((board[j] >> 0) & 1) == 0) && 
+		(((board[j] >> (0 + 1)) & 1) == 1)) 
+		{
+
+			// Found well cell, count it + the number of empty cells below it.
+			++well_sums;
+
+			for (int k = j - 1; k >= 0; --k) 
+			{
+				if (((board[k] >> 0) & 1) == 0) 
+				{
+					++well_sums;
+				} 
+				else 
+				{
+					break;
+				}
+			}
+		}
+	}
+
+	// Check for well cells in the rightmost column of the board.
+	for (int j = MAPWIDTH - 1; j >= 0; j --) 
+	{
+		if ((((board[j] >> (MAPHEIGHT - 1)) & 1) == 0) && 
+		(((board[j] >> (MAPHEIGHT - 2)) & 1) == 1)) 
+		{
+			// Found well cell, count it + the number of empty cells below it.
+
+			++well_sums;
+			for (int k = j - 1; k >= 0; --k) 
+			{
+				if (((board[k] >> (MAPHEIGHT - 1)) & 1) == 0) 
+				{
+					++well_sums;
+				}
+				else
+				{
+					break;
+				}
+			}
+		}
+	}
+
+	return well_sums;
 }
 
-Node simulation(Node* node)
+double calc (Tetris &block, int &player)
 {
-	/*
-		todo
-		模拟到终止节点
-	*/
-}
+	return GetLandingHeight(block) * -4.500158825082766 +
+		GetRowsRemoved(player) * 3.4181268101392694 +
+		GetRowTransitions(player) * -3.2178882868487753 +
+		GetColumnTransitions(player) * -9.348695305445199 +
+		GetNumberOfHoles(player) * -7.899265427351652 +
+		GetWellSums(player) * -3.3855972247263626;
+};
 
-void backUp(Node* node)
+double calc2 (Tetris &block, int &player)
 {
-	/*
-		todo
-	*/
-}
+	printf("%.2f %.2f %.2f %.2f %.2f %.2f\n", GetLandingHeight(block) * -4.500158825082766,
+		GetRowsRemoved(player) * 3.4181268101392694,
+		GetRowTransitions(player) * -3.2178882868487753,
+		GetColumnTransitions(player) * -9.348695305445199,
+		GetNumberOfHoles(player) * -7.899265427351652,
+		GetWellSums(player) * -3.3855972247263626);
+};
 
 int main()
 {
+#ifdef MEKTPOY
+	freopen("in.txt", "r", stdin);
+#endif
 	// 加速输入
 	istream::sync_with_stdio(false);
 	srand(time(NULL));
-	int begin_time = clock();
 	init();
  
 	int turnID, blockType;
@@ -532,43 +652,35 @@ int main()
 	// 遇事不决先输出（平台上编译不会输出）
 	Util::printField();
  
+ 	double MAX = -1e30;
 	// 贪心决策
 	// 从下往上以各种姿态找到第一个位置，要求能够直着落下
 	Tetris block(nextTypeForColor[currBotColor], currBotColor);
-	/*
 	for (int y = 1; y <= MAPHEIGHT; y++)
 		for (int x = 1; x <= MAPWIDTH; x++)
 			for (int o = 0; o < 4; o++)
 			{
-				if (block.set(x, y, o).isValid() &&
+				if (block.set(x, y, o).onGround() &&
 					Util::checkDirectDropTo(currBotColor, block.blockType, x, y, o))
 				{
-					finalX = x;
-					finalY = y;
-					finalO = o;
-					goto determined;
+					block.set(x, y, o).place();
+					double val = calc(block, currBotColor);
+					//printf("%d %d %d %.2f\n", x, y, o, val);
+					if (val > MAX)
+					{
+						MAX = val;
+						finalX = x;
+						finalY = y;
+						finalO = o;
+					}
+					block.set(x, y, o).place2();
 				}
 			}
- 	
-determined:
-	*/
- 	// orz crz
-	Node* root = getnode(NULL, currBotColor, -1, -1, -1, block.blockType, 0);
-	Node* node = root;
-	while (clock() - begin_time <= 850)
-	{
-		node = selection(root);
-		Node result = simulation(node);
-		backUp(result);
-		/*
-			todo
-			还原棋盘
-		*/
-	}
-
+	//block.set(finalX, finalY, finalO).place();
+	//calc2(block, currBotColor);
+	//block.set(finalX, finalY, finalO).place2();
 	// 再看看给对方什么好
- 
- /*
+	vector <int> enemyBlocks;
 	int maxCount = 0, minCount = 99;
 	for (int i = 0; i < 7; i++)
 	{
@@ -582,16 +694,44 @@ determined:
 		// 危险，找一个不是最大的块给对方吧
 		for (blockForEnemy = 0; blockForEnemy < 7; blockForEnemy++)
 			if (typeCountForColor[enemyColor][blockForEnemy] != maxCount)
-				break;
+				enemyBlocks.push_back(blockForEnemy);
 	}
 	else
 	{
-		blockForEnemy = rand() % 7;
+		for (int i = 0; i < 7; i ++)
+			enemyBlocks.push_back(i);
 	}
- */
+	double MIN = 1e30;
+	for (int k = 0; k < enemyBlocks.size(); k ++)
+	{
+		double MAX = -1e30;
+		Tetris enemyBlock(enemyBlocks[k], enemyColor);
+		for (int y = 1; y <= MAPHEIGHT; y++)
+			for (int x = 1; x <= MAPWIDTH; x++)
+				for (int o = 0; o < 4; o++)
+				{
+					if (block.set(x, y, o).onGround() &&
+						Util::checkDirectDropTo(enemyColor, block.blockType, x, y, o))
+					{
+						block.set(x, y, o).place();
+						double val = calc(block, enemyColor);
+						if (val > MAX)
+						{
+							MAX = val;
+						}
+						block.set(x, y, o).place2();
+					}
+				}
+		//printf("%d %.2f\n", enemyBlocks[k], MAX);
+		if (MAX < MIN)
+		{
+			MIN = MAX;
+			blockForEnemy = enemyBlocks[k];
+		}
+	}
 	// 决策结束，输出结果（你只需修改以上部分）
  
-	cout << blockForEnemy << " " << finalX << " " << finalY << " " << finalO;
+	cout << blockForEnemy << " " << finalX << " " << finalY << " " << finalO << endl;
  
 	return 0;
 }
