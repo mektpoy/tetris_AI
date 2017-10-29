@@ -133,18 +133,6 @@ public:
 		}
 		return true;
 	}
-
-	inline bool place2()
-	{
-		int i, tmpX, tmpY;
-		for (i = 0; i < 4; i++)
-		{
-			tmpX = blockX + shape[orientation][2 * i];
-			tmpY = blockY + shape[orientation][2 * i + 1];
-			gridInfo[color][tmpY][tmpX] = 0;
-		}
-		return true;
-	}
  
 	// 检查能否逆时针旋转自己到o
 	inline bool rotation(int o)
@@ -579,7 +567,25 @@ void Print (Tetris &block, int &player)
 		GetWellSums(player) * -3.3855972247263626);
 };
 
-int alphabeta (int dep, int alpha, int beta, int player)
+const int dep_pos[2] = {1, 3};
+const double INF = 1e30;
+
+Tetris Block[100];
+
+bool judge (int player, Tetris &block)
+{
+	for (int y = 1; y <= MAPHEIGHT; y++)
+		for (int x = 1; x <= MAPWIDTH; x++)
+			for (int o = 0; o < 4; o++)
+			{
+				if (block.set(x, y, o).onGround() &&
+					Util::checkDirectDropTo(player, block.blockType, x, y, o))
+						return false;
+			}
+	return true;
+}
+
+double alphabeta (int dep, int alpha, int beta, int player)
 {
 	int cnt = 0;
 	if (judge (player, Block[dep - dep_pos[player]]))
@@ -596,11 +602,33 @@ int alphabeta (int dep, int alpha, int beta, int player)
 	if (dep == MAXDEP)
 		return bo = 1, calc(num);
 
-	int ret;
+	double ret;
 	if (player == currBotColor)
 		ret = -INF;
 	else
 		ret = INF;
+
+	vector <int> enemyBlocksType;
+	int maxCount = 0, minCount = 99;
+	for (int i = 0; i < 7; i++)
+	{
+		if (typeCountForColor[player ^ 1][i] > maxCount)
+			maxCount = typeCountForColor[player ^ 1][i];
+		if (typeCountForColor[player ^ 1][i] < minCount)
+			minCount = typeCountForColor[player ^ 1][i];
+	}
+	if (maxCount - minCount == 2)
+	{
+		// 危险，找一个不是最大的块给对方吧
+		for (int i = 0; i < 7; i ++)
+			if (typeCountForColor[enemyColor][i] != maxCount)
+				enemyBlocksType.push_back(i);
+	}
+	else
+	{
+		for (int i = 0; i < 7; i ++)
+			enemyBlocksType.push_back(i);
+	}
 
 	Tetris block = Block[dep - dep_pos[player]];
 	for (int y = 1; y <= MAPHEIGHT; y++)
@@ -610,71 +638,28 @@ int alphabeta (int dep, int alpha, int beta, int player)
 				if (block.set(x, y, o).onGround() &&
 					Util::checkDirectDropTo(player, block.blockType, x, y, o))
 				{
-					block.set(x, y, o).place();
-					if (player == currBotColor)
-						ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
-					else
-						ret = min(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
-					block.set(x, y, o).place2();
-					if (beta <= alpha) goto goodbye;
+					for (int i = 0; i < enemyBlocksType.size(); i ++)
+					{
+						copy(depth);
+						block.set(x, y, o).place();
+						Block[dep] = Tetris(i, player ^ 1);
+						if (player == currBotColor)
+						{
+							ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
+							if (ret > alpha) alpha = ret;
+						}
+						else
+						{
+							ret = min(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
+							if (ret < beta) beta = ret;
+						}
+						recover(depth);
+						if (beta <= alpha) goto goodbye;
+					}
 				}
 			}
 goodbye:
 	return ret;
-/*
-	if (player == 0)
-	{
-		int Ret = - INF;
-		for (int k = 0; k < cnt; k ++)
-		{
-			int i = id[k];
-			int px = x+dx[i], py = y+dy[i];
-			if (px > n || py > m || px < 1 || py < 1) continue;
-			if (can[px][py] > num) continue;
-			int tmpo = can[px][py];
-			can[px][py] = INF;
-			snake[player].push_front (point (px, py));
-			Ret = max (Ret, alphabeta (dep - 1, alpha, beta, 1, num));
-			if (Ret > alpha && Ret < 20000)
-			{
-				alpha = Ret;
-				if (dep == ID * 2) 
-				{
-					tmp = i;
-					if (alpha >= 15000)
-					{
-						ans = i;
-						PRINT (alpha);
-					} 
-				}
-			}
-			can[px][py] = tmpo;
-			snake[player].pop_front ();
-			if (beta <= alpha) break;
-		}
-		return Ret;
-	}
-	else
-	{
-		int ret = 2147483647;
-		for (int k = 0; k < cnt; k ++)
-		{
-			int i = id[k];
-			int px = x + dx[i], py = y + dy[i];
-			if (px > n || py > m || px < 1 || py < 1) continue;
-			if (can[px][py] > num) continue;
-			int tmpo = can[px][py];
-			can[px][py] = 2147483647;
-			snake[player].push_front (point (px, py));
-			ret = min (ret, alphabeta (dep-1, alpha, beta, 0, num+1));
-			if (ret < beta) beta = ret;
-			can[px][py] = tmpo;
-			snake[player].pop_front ();
-			if (beta <= alpha) break;
-		}
-		return ret;
-	}
-*/
 }
 
 int main()
@@ -753,6 +738,17 @@ int main()
  	double MAX = -1e30;
 	// 贪心决策
 	// 从下往上以各种姿态找到第一个位置，要求能够直着落下
+
+	Block[0] = Tetris(nextTypeForColor[enemyColor], enemyColor);
+	Block[1] = Tetris(nextTypeForColor[currBotColor], currBotColor);
+
+	for (ID = 1; ID <= 50; ID ++)
+	{
+		bo = 0;
+		alphabeta(ID * 2, -INF, INF, currBotColor);
+		if (!bo) PRINT(-1);
+	}
+
 	Tetris block(nextTypeForColor[currBotColor], currBotColor);
 	for (int y = 1; y <= MAPHEIGHT; y++)
 		for (int x = 1; x <= MAPWIDTH; x++)
@@ -778,27 +774,7 @@ int main()
 	//calc2(block, currBotColor);
 	//block.set(finalX, finalY, finalO).place2();
 	// 再看看给对方什么好
-	vector <int> enemyBlocks;
-	int maxCount = 0, minCount = 99;
-	for (int i = 0; i < 7; i++)
-	{
-		if (typeCountForColor[enemyColor][i] > maxCount)
-			maxCount = typeCountForColor[enemyColor][i];
-		if (typeCountForColor[enemyColor][i] < minCount)
-			minCount = typeCountForColor[enemyColor][i];
-	}
-	if (maxCount - minCount == 2)
-	{
-		// 危险，找一个不是最大的块给对方吧
-		for (blockForEnemy = 0; blockForEnemy < 7; blockForEnemy++)
-			if (typeCountForColor[enemyColor][blockForEnemy] != maxCount)
-				enemyBlocks.push_back(blockForEnemy);
-	}
-	else
-	{
-		for (int i = 0; i < 7; i ++)
-			enemyBlocks.push_back(i);
-	}
+	
 	double MIN = 1e30;
 	for (int k = 0; k < enemyBlocks.size(); k ++)
 	{
