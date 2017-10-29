@@ -569,7 +569,7 @@ double calc (Tetris &block, int &player)
 		GetWellSums(player) * -3.3855972247263626;
 };
 
-double calc2 (Tetris &block, int &player)
+void Print (Tetris &block, int &player)
 {
 	printf("%.2f %.2f %.2f %.2f %.2f %.2f\n", GetLandingHeight(block) * -4.500158825082766,
 		GetRowsRemoved(player) * 3.4181268101392694,
@@ -578,6 +578,104 @@ double calc2 (Tetris &block, int &player)
 		GetNumberOfHoles(player) * -7.899265427351652,
 		GetWellSums(player) * -3.3855972247263626);
 };
+
+int alphabeta (int dep, int alpha, int beta, int player)
+{
+	int cnt = 0;
+	if (judge (player, Block[dep - dep_pos[player]]))
+	{
+		if (dep == MAXDEP) bo = 1;
+		if (player == currBotColor) 
+		{
+			if (judge (player ^ 1, Block[dep - dep_pos[player ^ 1]])) return 0;
+			return - 15000 - dep;
+		}
+		else return 15000 + dep;
+	}
+
+	if (dep == MAXDEP)
+		return bo = 1, calc(num);
+
+	int ret;
+	if (player == currBotColor)
+		ret = -INF;
+	else
+		ret = INF;
+
+	Tetris block = Block[dep - dep_pos[player]];
+	for (int y = 1; y <= MAPHEIGHT; y++)
+		for (int x = 1; x <= MAPWIDTH; x++)
+			for (int o = 0; o < 4; o++)
+			{
+				if (block.set(x, y, o).onGround() &&
+					Util::checkDirectDropTo(player, block.blockType, x, y, o))
+				{
+					block.set(x, y, o).place();
+					if (player == currBotColor)
+						ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
+					else
+						ret = min(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
+					block.set(x, y, o).place2();
+					if (beta <= alpha) goto goodbye;
+				}
+			}
+goodbye:
+	return ret;
+/*
+	if (player == 0)
+	{
+		int Ret = - INF;
+		for (int k = 0; k < cnt; k ++)
+		{
+			int i = id[k];
+			int px = x+dx[i], py = y+dy[i];
+			if (px > n || py > m || px < 1 || py < 1) continue;
+			if (can[px][py] > num) continue;
+			int tmpo = can[px][py];
+			can[px][py] = INF;
+			snake[player].push_front (point (px, py));
+			Ret = max (Ret, alphabeta (dep - 1, alpha, beta, 1, num));
+			if (Ret > alpha && Ret < 20000)
+			{
+				alpha = Ret;
+				if (dep == ID * 2) 
+				{
+					tmp = i;
+					if (alpha >= 15000)
+					{
+						ans = i;
+						PRINT (alpha);
+					} 
+				}
+			}
+			can[px][py] = tmpo;
+			snake[player].pop_front ();
+			if (beta <= alpha) break;
+		}
+		return Ret;
+	}
+	else
+	{
+		int ret = 2147483647;
+		for (int k = 0; k < cnt; k ++)
+		{
+			int i = id[k];
+			int px = x + dx[i], py = y + dy[i];
+			if (px > n || py > m || px < 1 || py < 1) continue;
+			if (can[px][py] > num) continue;
+			int tmpo = can[px][py];
+			can[px][py] = 2147483647;
+			snake[player].push_front (point (px, py));
+			ret = min (ret, alphabeta (dep-1, alpha, beta, 0, num+1));
+			if (ret < beta) beta = ret;
+			can[px][py] = tmpo;
+			snake[player].pop_front ();
+			if (beta <= alpha) break;
+		}
+		return ret;
+	}
+*/
+}
 
 int main()
 {
