@@ -373,12 +373,53 @@ struct Node
 	int player;
 	int type, total, wins;
 	int x, y, o, blockType;
-}touse[400000];
+}touse[400010];
 int touseptr;
+
+double ucb (Node* node)
+{
+	if (node->total == 0) return 1e30;
+	return 1.0 * node->wins / node->total;
+}
+
+Node* get_max_son_ucb(Node *node)
+{
+	Node* ret = NULL;
+	double MAX = -1e30;
+	for (int i = 0; i < node->son.size(); i ++)
+	{
+		double val = ucb(node->son[i]);
+		if (val > MAX)
+		{
+			ret = node->son[i];
+			MAX = val;
+		}
+	}
+	return ret;
+}
 
 Node* getnode(Node* pa, int player, int x, int y, int o, int blockType, int type)
 {
 	Node* ret = touse + (touseptr ++);
+	if (touseptr > 400000)
+	{
+		Node *root = touse;
+		Node *node = get_max_son_ucb(root);
+
+		int finalX = node->x;
+		int finalY = node->y;
+		int finalO = node->o;
+	
+		node = get_max_son_ucb(node);
+		int blockForEnemy = node->blockType;
+		
+		cout << blockForEnemy << " " << finalX << " " << finalY << " " << finalO << endl;
+	 
+	 	for (int i = 0; i < root->son.size(); i ++)
+	 		printf("{%d %d %d : %d/%d}", root->son[i]->x, root->son[i]->y, root->son[i]->o, root->son[i]->wins, root->son[i]->total);
+		
+		exit(0);
+	}
 	ret->pa = pa;
 	ret->player = player;
 	ret->x = x;
@@ -402,28 +443,6 @@ Node* get_max_son(Node *node)
 	for (int i = 0; i < node->son.size(); i ++)
 	{
 		double val = ucb1(node->son[i]);
-		if (val > MAX)
-		{
-			ret = node->son[i];
-			MAX = val;
-		}
-	}
-	return ret;
-}
-
-double ucb (Node* node)
-{
-	if (node->total == 0) return 1e30;
-	return 1.0 * node->wins / node->total;
-}
-
-Node* get_max_son_ucb(Node *node)
-{
-	Node* ret = NULL;
-	double MAX = -1e30;
-	for (int i = 0; i < node->son.size(); i ++)
-	{
-		double val = ucb(node->son[i]);
 		if (val > MAX)
 		{
 			ret = node->son[i];
@@ -459,7 +478,7 @@ inline int updategame(Node *node)
 	{
 		return Util::transfer();
 	}
-	// return -1;
+	return -1;
 }
 
 //扩展当前节点的所有儿子
@@ -514,6 +533,7 @@ Node* selection(Node* node)
 {
 	while(true)
 	{
+		//cout << node << endl;
 		if (node->son.size() == 0)
 		{
 			extend_son(node);
@@ -523,24 +543,66 @@ Node* selection(Node* node)
 			}
 			int id = rand() % (int)node->son.size();
 			node = node->son[id];
-
 			updategame(node);
-
 			return node;
 		}
-		node = get_max_son(node);
-
-		updategame(node);
-
-		if (node->total == 0) return node;
+		else
+		{
+			node = get_max_son(node);
+			updategame(node);
+			if (node->total == 0) return node;
+		}
 	}
 }
 
 inline Node* get_rand_son(Node *node)
 {
 	Node *ret;
-	extend_son(node);
-
+	/*
+	if (node->type == 0)
+		while(true)
+		{
+			int y = rand() % MAPHEIGHT + 1;
+			int x = rand() % MAPWIDTH + 1;
+			int o = rand() % 4;
+			Tetris block(nextTypeForColor[!node->player], !node->player);
+			if (block.set(x, y, o).onGround() &&
+				Util::checkDirectDropTo(!node->player, nextTypeForColor[!node->player], x, y, o))
+			{
+				Node* tmpNode = getnode(node, !node->player, x, y, o, nextTypeForColor[!node->player], !node->type);
+				return tmpNode;
+			}
+		}
+	else
+	{
+		int maxCount = 0, minCount = 99;
+		for (int i = 0; i < 7; i++)
+		{
+			if (typeCountForColor[!node->player][i] > maxCount)
+				maxCount = typeCountForColor[!node->player][i];
+			if (typeCountForColor[!node->player][i] < minCount)
+				minCount = typeCountForColor[!node->player][i];
+		}
+		while(true)
+		{
+			if (maxCount - minCount == 2)
+			{
+				int i = rand() % 7;
+				if (typeCountForColor[!node->player][i] != maxCount)
+				{
+					Node* tmpNode = getnode(node, node->player, -1, -1, -1, i, !node->type);
+					node->son.push_back(tmpNode);
+				}
+			}
+			else
+			{
+				int i = rand() % 7;
+				Node* tmpNode = getnode(node, node->player, -1, -1, -1, i, !node->type);
+				return tmpNode;
+			}
+		}
+	}
+	*/
 	if (node->son.size() == 0) return NULL;
 	int id = rand() % (int)node->son.size();
 	ret = node->son[id];
@@ -555,10 +617,6 @@ inline int simulation(Node* node)
 {
 	Node* nxt;
 	int result = -1;
-	if (node->son.size() == 0)
-	{
-		return !node->player;
-	}
 	while (result == -1)
 	{
 		nxt = get_rand_son(node);
@@ -585,6 +643,9 @@ inline void backUp(Node* node, int result)
 
 int main()
 {
+#ifdef MEKTPOY
+	freopen("in.txt", "r", stdin);
+#endif
 	// 加速输入
 	istream::sync_with_stdio(false);
 	srand(time(NULL));
@@ -684,9 +745,12 @@ determined:
 	Node* node = root;
 	while ((clock() - begin_time) / CLOCKS_PER_SEC <= 0.85)
 	{
-		
+		if (touseptr > 400000) break;
 		node = selection(root);
+		//cout << node << endl;
 		int result = simulation(node);
+		//cout << result << endl;
+		//cout << "=============" << endl;
 		backUp(node, result);
 
  		memcpy(gridInfo, temp_gridInfo, sizeof(gridInfo));
@@ -697,7 +761,8 @@ determined:
 	 	memcpy(elimTotal, temp_elimTotal, sizeof(elimTotal));
 	 	memcpy(maxHeight, temp_maxHeight, sizeof(maxHeight));
 	}
-
+	// cout << touseptr << endl;
+determind:
 	node = get_max_son_ucb(root);
 
 	finalX = node->x;
