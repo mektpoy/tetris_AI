@@ -23,6 +23,7 @@ int enemyColor;
  
 // 先y后x，记录地图状态，0为空，1为以前放置，2为刚刚放置，负数为越界
 // （2用于在清行后将最后一步撤销再送给对方）
+int temp_girdInfo[110][2][MAPHEIGHT + 2][MAPWIDTH + 2] = { 0 };
 int gridInfo[2][MAPHEIGHT + 2][MAPWIDTH + 2] = { 0 };
  
 // 代表分别向对方转移的行
@@ -33,11 +34,13 @@ int transCount[2] = { 0 };
  
 // 运行eliminate后的当前高度
 int maxHeight[2] = { 0 };
- 
+
 // 总消去行数的分数之和
+int temp_elimTotal[110][2] = { 0 }; 
 int elimTotal[2] = { 0 };
 
 // 连续几回合发生过消去了
+int temp_elimCombo[110][2] = { 0 }; 
 int elimCombo[2] = { 0 };
  
 // 一次性消去行数对应分数
@@ -354,6 +357,13 @@ namespace Util
 	}
 }
 
+class Result
+{
+	int blockForEnemy, finalX, finalY, finalO;
+	Result(int blockForEnemy, int finalX, int finalY, int finalO) :
+		blockForEnemy(blockForEnemy), finalX(finalX), finalY(finalY), finalO(finalO) {}
+}ans, tmp;
+
 int GetLandingHeight(Tetris now) 
 {
   return now.blockY;
@@ -549,6 +559,7 @@ int GetWellSums(int player)
 
 double calc (Tetris &block, int &player)
 {
+	if ((clock() - tim) / CLOCKS_PER_SEC > 0.85) PRINT (-1);
 	return GetLandingHeight(block) * -4.500158825082766 +
 		GetRowsRemoved(player) * 3.4181268101392694 +
 		GetRowTransitions(player) * -3.2178882868487753 +
@@ -585,12 +596,48 @@ bool judge (int player, Tetris &block)
 	return true;
 }
 
+void copy (int depth)
+{
+	memcpy(temp_elimCombo[depth], elimCombo, sizeof(elimCombo));
+	memcpy(temp_elimTotal[depth], elimTotal, sizeof(elimTotal));
+	memcpy(temp_girdInfo[depth], gridInfo, sizeof(gridInfo));
+}
+
+void recover (int depth)
+{
+	memcpy(elimCombo, temp_elimCombo[depth], sizeof(elimCombo));
+	memcpy(elimTotal, temp_elimTotal[depth], sizeof(elimTotal));
+	memcpy(gridInfo, temp_girdInfo[depth], sizeof(gridInfo));
+}
+
 double alphabeta (int dep, int alpha, int beta, int player)
 {
 	int cnt = 0;
+	if (dep != 2 && dep % 2 == 0)
+	{
+		if (player == enemyColor)
+		{
+			Util::eliminate(0);
+			Util::eliminate(1);
+			int result = Util::transfer();
+			if (result != -1)
+			{
+				if (result == enemyColor)
+				{
+					return 15000 + dep;
+				}
+				else
+				{
+					return -15000 - dep;
+				}
+			}
+		}
+	}
+
+	if (dep == MAXDEP) bo = 1;
+
 	if (judge (player, Block[dep - dep_pos[player]]))
 	{
-		if (dep == MAXDEP) bo = 1;
 		if (player == currBotColor) 
 		{
 			if (judge (player ^ 1, Block[dep - dep_pos[player ^ 1]])) return 0;
@@ -600,7 +647,7 @@ double alphabeta (int dep, int alpha, int beta, int player)
 	}
 
 	if (dep == MAXDEP)
-		return bo = 1, calc(num);
+		return calc(num);
 
 	double ret;
 	if (player == currBotColor)
@@ -642,11 +689,18 @@ double alphabeta (int dep, int alpha, int beta, int player)
 					{
 						copy(depth);
 						block.set(x, y, o).place();
-						Block[dep] = Tetris(i, player ^ 1);
+						Block[dep] = Tetris(enemyBlocksType[i], player ^ 1);
 						if (player == currBotColor)
 						{
 							ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
-							if (ret > alpha) alpha = ret;
+							if (ret > alpha && ret < 20000) 
+							{
+								alpha = ret;
+								if (dep == 2)
+								{
+									tmp = Result(enemyBlocksType[i], x, y, o);
+								}
+							}
 						}
 						else
 						{
@@ -660,6 +714,12 @@ double alphabeta (int dep, int alpha, int beta, int player)
 			}
 goodbye:
 	return ret;
+}
+
+void PRINT (double alpha)
+{
+	cout << ans.blockForEnemy << " " << ans.finalX << " " << ans.finalY << " " << ans.finalO << endl;
+	printf("%.2f\n", alpha);
 }
 
 int main()
@@ -742,70 +802,20 @@ int main()
 	Block[0] = Tetris(nextTypeForColor[enemyColor], enemyColor);
 	Block[1] = Tetris(nextTypeForColor[currBotColor], currBotColor);
 
-	for (ID = 1; ID <= 50; ID ++)
+	for (MAXDEP = 1; MAXDEP <= 50; ID ++)
 	{
-		bo = 0;
-		alphabeta(ID * 2, -INF, INF, currBotColor);
-		if (!bo) PRINT(-1);
+		bo = 0; tmp = Result(-1, -1, -1, -1);
+		alphabeta(2, -INF, INF, currBotColor);
+		ans = tmp;
 	}
-
-	Tetris block(nextTypeForColor[currBotColor], currBotColor);
-	for (int y = 1; y <= MAPHEIGHT; y++)
-		for (int x = 1; x <= MAPWIDTH; x++)
-			for (int o = 0; o < 4; o++)
-			{
-				if (block.set(x, y, o).onGround() &&
-					Util::checkDirectDropTo(currBotColor, block.blockType, x, y, o))
-				{
-					block.set(x, y, o).place();
-					double val = calc(block, currBotColor);
-					//printf("%d %d %d %.2f\n", x, y, o, val);
-					if (val > MAX)
-					{
-						MAX = val;
-						finalX = x;
-						finalY = y;
-						finalO = o;
-					}
-					block.set(x, y, o).place2();
-				}
-			}
+	PRINT(-1);
 	//block.set(finalX, finalY, finalO).place();
 	//calc2(block, currBotColor);
 	//block.set(finalX, finalY, finalO).place2();
 	// 再看看给对方什么好
 	
-	double MIN = 1e30;
-	for (int k = 0; k < enemyBlocks.size(); k ++)
-	{
-		double MAX = -1e30;
-		Tetris enemyBlock(enemyBlocks[k], enemyColor);
-		for (int y = 1; y <= MAPHEIGHT; y++)
-			for (int x = 1; x <= MAPWIDTH; x++)
-				for (int o = 0; o < 4; o++)
-				{
-					if (block.set(x, y, o).onGround() &&
-						Util::checkDirectDropTo(enemyColor, block.blockType, x, y, o))
-					{
-						block.set(x, y, o).place();
-						double val = calc(block, enemyColor);
-						if (val > MAX)
-						{
-							MAX = val;
-						}
-						block.set(x, y, o).place2();
-					}
-				}
-		//printf("%d %.2f\n", enemyBlocks[k], MAX);
-		if (MAX < MIN)
-		{
-			MIN = MAX;
-			blockForEnemy = enemyBlocks[k];
-		}
-	}
 	// 决策结束，输出结果（你只需修改以上部分）
  
-	cout << blockForEnemy << " " << finalX << " " << finalY << " " << finalO << endl;
  
 	return 0;
 }
