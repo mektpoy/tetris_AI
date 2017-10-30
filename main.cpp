@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <queue>
 using namespace std;
  
 #define MAPWIDTH 10
@@ -586,6 +587,7 @@ double calc (int player)
 
 const double INF = 1e30;
 
+/*
 bool judge (int player, Tetris &block)
 {
 	for (int y = 1; y <= MAPHEIGHT; y++)
@@ -598,6 +600,7 @@ bool judge (int player, Tetris &block)
 			}
 	return true;
 }
+*/
 
 void copy (int depth)
 {
@@ -615,6 +618,48 @@ void recover (int depth)
 	memcpy(gridInfo, temp_girdInfo[depth], sizeof(gridInfo));
 }
 
+inline void bfs(Tetris t, vector<data> &v)
+{
+	queue <data> Q; Q.clear();
+	memset(vis, 0, sizeof(vis));
+	for (int x = 1; x <= MAPWIDTH; x++)
+	{
+		bool flag[4]; int cnt = 0;
+		memset(flag, 0, sizeof (flag));
+		for (int y = MAPHEIGHT; y; y--)
+		{
+			for (int o = 0; o < 4; o++)
+				if (!flag[o] && Util::checkDirectDropTo(t.color, t.blockType, x, y, o))
+				{
+					vis[x][y][o] = 1; Q.push(data(x, y, o)); flag[o] = 1; ++cnt;
+				}
+			if (cnt == 4) break;
+		}
+	}
+
+	while (!Q.empty())
+	{
+		data k = Q.front(); Q.pop();
+		for (int i = 0; i < 3; i++)
+		{
+			int xx = k.x + dx[i], yy = k.y + dy[i];
+			if (xx < 1 || xx > MAPWIDTH || yy < 1 || yy > MAPHEIGHT) continue;
+			if (vis[xx][yy][o] || !t.isValid(xx, yy, o)) continue;
+			vis[xx][yy][o] = 1; Q.push(data(xx, yy, o));
+		}
+		for (int o = 0; o < 4; o++)
+		{
+			if (vis[k.x][k.y][o]) continue;
+			if (t.set(k.x, k.y, k.o).rotation(o))
+				vis[k.x][k.y][o] = 1, Q.push(data(k.x, k.y, k.o));
+		}
+	}
+	for (int x = 1; x <= MAPWIDTH; x++)
+		for (int y = 1; y <= MAPHEIGHT; y++)
+			for (int o = 0; o < 4; o++)
+				if (vis[x][y][o] && t.set(x, y, o).onGround()) v.push_back(data(x, y, o));
+}
+
 double alphabeta (int dep, double alpha, double beta, int player)
 {
 	// printf("%d %.2f %.2f %d\n", dep, alpha, beta, player);
@@ -622,12 +667,33 @@ double alphabeta (int dep, double alpha, double beta, int player)
 
 	if (dep & 1)
 	{
-		if (judge (player, Block[dep >> 1]))
+		double ret = -INF;
+		Tetris block = Block[dep >> 1];
+		vector <data> v;
+		bfs (block, v);
+		if (v.empty())
 		{
 			return - 15000 + dep;
 		}
-		double ret = -INF;
-		Tetris block = Block[dep >> 1];
+		for (int i = 0; i < v.size(); i ++)
+		{
+			block = v[i];
+			copy(dep);
+			block.set(x, y, o).place();
+			Util::eliminate(player);
+			ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
+			if (ret > alpha) 
+			{
+				alpha = ret;
+				if (dep == 1)
+				{
+					tmp = Result(ab_block, x, y, o);
+				}
+			}
+			recover(dep);
+			if (beta <= alpha) goto goodbye;
+		}
+		/*
 		for (int y = 1; y <= MAPHEIGHT; y++)
 			for (int x = 1; x <= MAPWIDTH; x++)
 				for (int o = 0; o < 4; o++)
@@ -651,6 +717,7 @@ double alphabeta (int dep, double alpha, double beta, int player)
 						if (beta <= alpha) goto goodbye;
 					}
 				}
+		*/
 	goodbye:
 		return ret;
 	}
