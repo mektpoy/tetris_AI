@@ -1,7 +1,7 @@
 
 
 const int dx[3] = {-1 ,1, 0};
-const int dy[3] = {0, 0, 1};
+const int dy[3] = {0, 0, -1};
 
 bool vis[MAPWIDTH + 3][MAPHEIGHT + 3][4];
 

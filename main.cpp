@@ -77,7 +77,7 @@ const int rotateBlank[7][4][10] = {
 }; // 旋转的时候需要为空的块相对于旋转中心的坐标
  
 const int dx[3] = {-1 ,1, 0};
-const int dy[3] = {0, 0, 1};
+const int dy[3] = {0, 0, -1};
 
 void PRINT ();
 
