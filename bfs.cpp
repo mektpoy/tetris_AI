@@ -11,109 +11,110 @@ struct data
 	data(int x, int y, int o): x(x), y(y), o(o){}
 };
 
-
 class Tetris
 {
 public:
-	int blockType;//标记方块类型的序号 0~6
-	int blockX;     //旋转中心的x轴坐标
-	int blockY;     //旋转中心的y轴坐标
-	int orientation; //标记方块的朝向 0~3
+	int blockType;   // 标记方块类型的序号 0~6
+	int blockX;            // 旋转中心的x轴坐标
+	int blockY;            // 旋转中心的y轴坐标
+	int orientation;       // 标记方块的朝向 0~3
+	int(*shape)[8]; // 当前类型方块的形状定义
+ 
+	int color;
 
-	Tetris(int t, int x, int y, int o)
+	Tetris()
+	{ }
+	Tetris(int t, int color) : blockType(t), shape(blockShape[t]), color(color)
+	{ }
+ 
+	inline Tetris &set(int x = -1, int y = -1, int o = -1)
 	{
-		blockType = t;
-		blockX = x;
-		blockY = y;
-		orientation = o;
-	}
-	void set(int t = -1, int x = -1, int y = -1, int o = -1)
-	{
-		blockType = t == -1 ? blockType : t;
 		blockX = x == -1 ? blockX : x;
 		blockY = y == -1 ? blockY : y;
 		orientation = o == -1 ? orientation : o;
+		return *this;
 	}
-	bool isValid(int color, int x = -1, int y = -1, int o = -1) const
+ 
+	// 判断当前位置是否合法
+	inline bool isValid(int x = -1, int y = -1, int o = -1)
 	{
 		x = x == -1 ? blockX : x;
 		y = y == -1 ? blockY : y;
 		o = o == -1 ? orientation : o;
-		if (o < 0 || o > 3 || blockType < 0 || blockType > 6)
+		if (o < 0 || o > 3)
 			return false;
-
+ 
 		int i, tmpX, tmpY;
 		for (i = 0; i < 4; i++)
 		{
-			tmpX = x + deltaBlock[blockType][o][2 * i];
-			tmpY = y + deltaBlock[blockType][o][2 * i + 1];
-			if (tmpX < 1 || tmpX > MAPWIDTH || tmpY < 1 || tmpY > MAPHEIGHT)
-				return false;
-			if (gridInfo[color][tmpY][tmpX] != 0)
-				return false;
-		}
-		return true;
-	}
-	bool checkRotationBlank(int color) const
-	{
-		for (int i = 0; i < 5; i++)
-		{
-			int blankX = blockX + rotateBlank[blockType][orientation][2 * i];
-			int blankY = blockY + rotateBlank[blockType][orientation][2 * i + 1];
-			if (blankX == blockX && blankY == blockY)
-				break;
-			if (gridInfo[color][blankY][blankX] != 0)
+			tmpX = x + shape[o][2 * i];
+			tmpY = y + shape[o][2 * i + 1];
+			if (tmpX < 1 || tmpX > MAPWIDTH ||
+				tmpY < 1 || tmpY > MAPHEIGHT ||
+				gridInfo[color][tmpY][tmpX] != 0)
 				return false;
 		}
 		return true;
 	}
-
-
-	// 已改
-	bool isGround(int color) const
+ 
+	// 判断是否落地
+	inline bool onGround()
 	{
-		if (isValid(color) && !isValid(color, -1, blockY - 1))
+		if (isValid() && !isValid(-1, blockY - 1))
 			return true;
 		return false;
 	}
-
-	// 已改 rotation会测量方块是否可以从befO逆时针旋转到o
-	bool rotation(int color, int x = -1, int y = -1, int befO = -1, int o = -1)
+ 
+	// 将方块放置在场地上
+	inline bool place()
 	{
-		x = x == -1 ? blockX : x;
-		y = y == -1 ? blockY : y;
-		befO = befO == -1 ? orientation : befO;
-		o = o == -1 ? orientation : o;
-		if (o < 0 || o > 3 || blockType < 0 || blockType > 6)
+		if (!onGround())
 			return false;
-
-		if (befO == o)
+ 
+		int i, tmpX, tmpY;
+		for (i = 0; i < 4; i++)
+		{
+			tmpX = blockX + shape[orientation][2 * i];
+			tmpY = blockY + shape[orientation][2 * i + 1];
+			gridInfo[color][tmpY][tmpX] = 2;
+		}
+		return true;
+	}
+ 
+	// 检查能否逆时针旋转自己到o
+	inline bool rotation(int o)
+	{
+		if (o < 0 || o > 3)
+			return false;
+ 
+		if (orientation == o)
 			return true;
-
+ 
+		int fromO = orientation;
 		int i, blankX, blankY;
 		while (true)
 		{
-			if (!isValid(color, x, y, befO))
+			if (!isValid(-1, -1, fromO))
 				return false;
-
-			if (befO == o)
+ 
+			if (fromO == o)
 				break;
-
+				
 			// 检查旋转碰撞
 			for (i = 0; i < 5; i++) {
-				blankX = blockX + rotateBlank[blockType][befO][2 * i];
-				blankY = blockY + rotateBlank[blockType][befO][2 * i + 1];
+				blankX = blockX + rotateBlank[blockType][fromO][2 * i];
+				blankY = blockY + rotateBlank[blockType][fromO][2 * i + 1];
 				if (blankX == blockX && blankY == blockY)
 					break;
 				if (gridInfo[color][blankY][blankX] != 0)
 					return false;
 			}
-
-			befO = (befO + 1) % 4;
+ 
+			fromO = (fromO + 1) % 4;
 		}
 		return true;
 	}
-}
+};
 
 namespace Util
 {
@@ -134,16 +135,25 @@ namespace Util
 	}
 }
 
-inline void bfs(int type, int o, int player, vector<data> &v)
+inline void bfs(Tetris t, vector<data> &v)
 {
 	queue <data> Q; Q.clear();
 	memset(vis, 0, sizeof(vis));
 	for (int x = 1; x <= MAPWIDTH; x++)
+	{
+		bool flag[4]; int cnt = 0;
+		memset(flag, 0, sizeof (flag));
 		for (int y = MAPHEIGHT; y; y--)
-				if (Util::checkDirectDropTo(player, type, x, y, o))
+		{
+			for (int o = 0; o < 4; o++)
+				if (!flag[o] && Util::checkDirectDropTo(t.color, t.blockType, x, y, o))
 				{
-					vis[x][y][o] = 1; Q.push(data(x, y, o)); break;
+					vis[x][y][o] = 1; Q.push(data(x, y, o)); flag[o] = 1; ++cnt;
 				}
+			if (cnt == 4) break;
+		}
+	}
+
 	while (!Q.empty())
 	{
 		data k = Q.front(); Q.pop();
@@ -151,18 +161,18 @@ inline void bfs(int type, int o, int player, vector<data> &v)
 		{
 			int xx = k.x + dx[i], yy = k.y + dy[i];
 			if (xx < 1 || xx > MAPWIDTH || yy < 1 || yy > MAPHEIGHT) continue;
-			if (vis[xx][yy][o] || !Tetris2.set(type, xx, yy, o).isValid(player)) continue;
+			if (vis[xx][yy][o] || !t.isValid(xx, yy, o)) continue;
 			vis[xx][yy][o] = 1; Q.push(data(xx, yy, o));
 		}
 		for (int o = 0; o < 4; o++)
 		{
 			if (vis[k.x][k.y][o]) continue;
-			if (Tetris.set(type, k.x, k.y, k.o).rotation(player, -1, -1, -1,o))
+			if (t.set(k.x, k.y, k.o).rotation(o))
 				vis[k.x][k.y][o] = 1, Q.push(data(k.x, k.y, k.o));
 		}
 	}
 	for (int x = 1; x <= MAPWIDTH; x++)
 		for (int y = 1; y <= MAPHEIGHT; y++)
 			for (int o = 0; o < 4; o++)
-				if (vis[x][y][o] && Tetris2.set(x, y, o).isGround(player)) v.push_back(data(x, y, o));
+				if (vis[x][y][o] && t.set(x, y, o).onGround()) v.push_back(data(x, y, o));
 }
