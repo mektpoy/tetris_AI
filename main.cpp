@@ -383,9 +383,8 @@ int ab_block;
 
 bool vis[MAPWIDTH + 3][MAPHEIGHT + 3][4];
 
-struct data
-{
-	int x,y,o; data(){}
+struct data{
+	int x, y, o; data(){}
 	data(int x, int y, int o): x(x), y(y), o(o){}
 };
 
@@ -634,7 +633,7 @@ void recover (int depth)
 
 inline void bfs(Tetris t, vector<data> &v)
 {
-	queue <data> Q; Q.clear();
+	queue <data> Q;
 	memset(vis, 0, sizeof(vis));
 	for (int x = 1; x <= MAPWIDTH; x++)
 	{
@@ -658,8 +657,8 @@ inline void bfs(Tetris t, vector<data> &v)
 		{
 			int xx = k.x + dx[i], yy = k.y + dy[i];
 			if (xx < 1 || xx > MAPWIDTH || yy < 1 || yy > MAPHEIGHT) continue;
-			if (vis[xx][yy][o] || !t.isValid(xx, yy, o)) continue;
-			vis[xx][yy][o] = 1; Q.push(data(xx, yy, o));
+			if (vis[xx][yy][k.o] || !t.isValid(xx, yy, k.o)) continue;
+			vis[xx][yy][k.o] = 1; Q.push(data(xx, yy, k.o));
 		}
 		for (int o = 0; o < 4; o++)
 		{
@@ -700,7 +699,7 @@ double alphabeta (int dep, double alpha, double beta, int player)
 				alpha = ret;
 				if (dep == 1)
 				{
-					tmp = Result(ab_block, x, y, o);
+					tmp = Result(ab_block, v[i].x, v[i].y, v[i].o);
 				}
 			}
 			recover(dep);
