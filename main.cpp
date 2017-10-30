@@ -76,6 +76,8 @@ const int rotateBlank[7][4][10] = {
 	{ { 0,0 },{ 0,0 } ,{ 0,0 } ,{ 0,0 } }
 }; // 旋转的时候需要为空的块相对于旋转中心的坐标
  
+const int dx[3] = {-1 ,1, 0};
+const int dy[3] = {0, 0, 1};
 
 void PRINT ();
 
@@ -379,6 +381,14 @@ struct Result
 
 int ab_block;
 
+bool vis[MAPWIDTH + 3][MAPHEIGHT + 3][4];
+
+struct data
+{
+	int x,y,o; data(){}
+	data(int x, int y, int o): x(x), y(y), o(o){}
+};
+
 int GetLandingHeight(int player) 
 {
   return maxHeight[player];
@@ -604,6 +614,10 @@ bool judge (int player, Tetris &block)
 
 void copy (int depth)
 {
+	/*
+		todo
+		gridInfo需要常数优化
+	*/
 	memcpy(temp_maxHeight[depth], maxHeight, sizeof(maxHeight));
 	memcpy(temp_elimCombo[depth], elimCombo, sizeof(elimCombo));
 	memcpy(temp_elimTotal[depth], elimTotal, sizeof(elimTotal));
