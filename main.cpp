@@ -779,7 +779,7 @@ int main()
 	// 贪心决策
 	// 从下往上以各种姿态找到第一个位置，要求能够直着落下
 
-	TIME_LIMIT = 0.6;
+	TIME_LIMIT = 0.475;
 	Block[0] = Tetris(nextTypeForColor[currBotColor], currBotColor);
 	for (MAXDEP = 2; MAXDEP <= 50; MAXDEP += 2)
 	{
@@ -790,7 +790,9 @@ int main()
 			ans = tmp;
 	}
 
-	TIME_LIMIT = 0.9;
+	int first_dep = MAXDEP;
+
+	TIME_LIMIT = 0.95;
 	Block[0] = Tetris(nextTypeForColor[enemyColor], enemyColor);
 	for (MAXDEP = 2; MAXDEP <= 50; MAXDEP += 2)
 	{
@@ -802,6 +804,13 @@ int main()
 	}
 
 	PRINT();
+
+	int second_dep = MAXDEP;
+
+#ifdef MEKTPOY
+	cout << first_dep << " " << second_dep << endl;
+#endif
+
 	//block.set(finalX, finalY, finalO).place();
 	//calc2(block, currBotColor);
 	//block.set(finalX, finalY, finalO).place2();
