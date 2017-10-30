@@ -682,18 +682,17 @@ double alphabeta (int dep, double alpha, double beta, int player)
 	if (dep & 1)
 	{
 		double ret = -INF;
-		Tetris block = Block[dep >> 1];
 		vector <data> v;
-		bfs (block, v);
+		bfs (Block[dep >> 1], v);
 		if (v.empty())
 		{
 			return - 15000 + dep;
 		}
 		for (int i = 0; i < v.size(); i ++)
 		{
-			block = v[i];
 			copy(dep);
-			block.set(x, y, o).place();
+			Tetris block = Block[dep >> 1];
+			block.set(v[i].x, v[i].y, v[i].o).place();
 			Util::eliminate(player);
 			ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
 			if (ret > alpha) 
