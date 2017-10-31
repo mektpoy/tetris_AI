@@ -716,7 +716,7 @@ double alphabeta (int dep, double alpha, double beta, int player)
 		}
 		sort(v.begin(), v.end());
 		reverse(v.begin(), v.end());
-		int sz = min((int)v.size(), 10);
+		int sz = (int)v.size();
 
 		for (int i = 0; i < sz; i ++)
 		{
