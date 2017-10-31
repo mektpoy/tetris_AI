@@ -605,8 +605,8 @@ double calc (int player)
 			GetRowsRemoved(i) * 3.4181268101392694 +
 			GetRowTransitions(i) * -3.2178882868487753 +
 			GetColumnTransitions(i) * -9.348695305445199 +
-			GetNumberOfHoles(i) * -17.899265427351652 +
-			GetWellSums(i) * -3.3855972247263626;
+			GetNumberOfHoles(i) * -9.899265427351652 +
+			GetWellSums(i) * -2.3855972247263626;
 	}
 	return player_score[player];
 };
