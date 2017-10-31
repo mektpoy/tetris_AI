@@ -24,7 +24,7 @@ int currBotColor;
 int enemyColor;
 
 double tim;
-int MAXDEP;
+int MAXDEP, turnID;
  
 // 先y后x，记录地图状态，0为空，1为以前放置，2为刚刚放置，负数为越界
 // （2用于在清行后将最后一步撤销再送给对方）
@@ -79,8 +79,6 @@ const int rotateBlank[7][4][10] = {
 const int dx[3] = {-1 ,1, 0};
 const int dy[3] = {0, 0, -1};
 int dep_pos[2] = {1, 3};
-double blockValue[10];
-int blockCnt[10];
 
 void PRINT ();
 
@@ -400,11 +398,11 @@ struct data{
 	}
 };
 
-const double Height[21] = {0.0, 0.2, 0.4, 0.7, 1.1, 1.5, 1.9, 2.5, 3.1, 3.8, 4.7, 5.9, 7.0, 8.2, 9.5, 11.2, 13.5, 16.5, 20.0, 24.5, 30.0};
+const double Height[21] = {0.0, 0.2, 0.4, 0.8, 1.3, 1.9, 2.5, 3.2, 4.0, 4.9, 6.0, 7.1, 8.3, 9.5, 10.7, 11.9, 13.4, 14.9, 16.2, 18.5, 20.0};
 
 int GetLandingHeight(int player) 
 {
-  return Height[maxHeight[player]];
+  return Height[maxHeight[player]] * 1.08;
 }
 
 int GetRowsRemoved(int player)
@@ -605,10 +603,10 @@ double calc (int player)
 		player_score[i] = 
 			GetLandingHeight(i) * -4.500158825082766 +
 			GetRowsRemoved(i) * 3.4181268101392694 +
-			GetRowTransitions(i) * -3.2178882868487753 +
-			GetColumnTransitions(i) * -9.348695305445199 +
-			GetNumberOfHoles(i) * -7.899265427351652 +
-			GetWellSums(i) * -3.3855972247263626;
+			GetRowTransitions(i) * -1.2178882868487753 +
+			GetColumnTransitions(i) * -3.348695305445199 +
+			GetNumberOfHoles(i) * -9.899265427351652 +
+			GetWellSums(i) * -2.3855972247263626;
 	}
 	return player_score[player];
 };
@@ -727,19 +725,13 @@ double alphabeta (int dep, double alpha, double beta, int player)
 			block.set(v[i].x, v[i].y, v[i].o).place();
 			
 			Util::eliminate(player);
-			double new_alphabeta = alphabeta(dep + 1, alpha, beta, player ^ 1);
-			ret = max(ret, new_alphabeta);
-			if (dep == 1)
-			{
-				blockValue[ab_block] += new_alphabeta;
-				blockCnt[ab_block] ++;
-			}
+			ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
 			if (ret > alpha) 
 			{
 				alpha = ret;
 				if (dep == 1)
 				{
-					tmp = Result(-1, v[i].x, v[i].y, v[i].o);
+					tmp = Result(ab_block, v[i].x, v[i].y, v[i].o);
 				}
 			}
 			recover(dep);
@@ -777,7 +769,15 @@ double alphabeta (int dep, double alpha, double beta, int player)
 		for (int i = 0; i < enemyBlocksType.size(); i ++)
 		{
 			Block[dep >> 1] = Tetris(enemyBlocksType[i], player ^ 1);
-			ret = min(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
+			double Bonus = 0.0;
+			if (turnID <= 5)
+			{
+				if (enemyBlocksType[i] == 2 && enemyBlocksType[i] == 3)
+				{
+					Bonus = 500.0;
+				}
+			}
+			ret = min(ret, Bonus + alphabeta(dep + 1, alpha, beta, player ^ 1));
 			if (ret < beta)
 			{
 				beta = ret;
@@ -803,8 +803,8 @@ double calc2 (int player)
 			GetRowsRemoved(i) * 3.4181268101392694 +
 			GetRowTransitions(i) * -3.2178882868487753 +
 			GetColumnTransitions(i) * -9.348695305445199 +
-			GetNumberOfHoles(i) * -7.899265427351652 +
-			GetWellSums(i) * -3.3855972247263626;
+			GetNumberOfHoles(i) * -9.899265427351652 +
+			GetWellSums(i) * -2.3855972247263626;
 	}
 	return player_score[player] - player_score[player ^ 1];
 };
@@ -946,7 +946,7 @@ int main()
 	srand(time(NULL));
 	init();
 
-	int turnID, blockType;
+	int blockType;
 	int nextTypeForColor[2];
 	cin >> turnID;
  
@@ -1030,9 +1030,6 @@ int main()
 
 		int first_dep = MAXDEP;
 
-		memset (blockValue, 0, sizeof(blockValue));
-		memset (blockCnt, 0, sizeof(blockCnt));
-
 		TIME_LIMIT = 0.95;
 		Block[0] = Tetris(nextTypeForColor[enemyColor], enemyColor);
 		for (MAXDEP = 2; MAXDEP <= 50; MAXDEP += 2)
@@ -1042,26 +1039,13 @@ int main()
 			alphabeta(1, -INF, INF, enemyColor);
 			if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
 			{
-				for (int i = 0; i < 7; i ++)
-				{
-					double MAX = -INF;
-					if (blockCnt[i])
-					{
-						if (blockValue[i] / blockCnt[i] > MAX)
-						{
-							MAX = blockValue[i] / blockCnt[i];
-							ans.blockForEnemy = i;
-						}
-					}
-				}
+				ans.blockForEnemy = tmp.blockForEnemy;
 			}
 			else
 			{
 				break;
 			}
 		}
-
-
 
 		PRINT();
 
