@@ -50,7 +50,7 @@ int temp_elimCombo[110][2] = { 0 };
 int elimCombo[2] = { 0 };
  
 // 一次性消去行数对应分数
-const int elimBonus[] = { 0, 1, 2, 3, 4 };
+const int elimBonus[] = { 0, 1, 2, 3, 4, 5};
 double TIME_LIMIT;
  
 // 给对应玩家的各类块的数目总计
@@ -386,12 +386,23 @@ bool vis[MAPWIDTH + 3][MAPHEIGHT + 3][4];
 
 struct data{
 	int x, y, o; data(){}
+	double val;
 	data(int x, int y, int o): x(x), y(y), o(o){}
+	void setVal(double _val)
+	{
+		val = _val;
+	}
+	bool operator < (const data &a) const
+	{
+		return val < a.val;
+	}
 };
+
+const double Height[21] = {0.0, 0.2, 0.4, 0.7, 1.1, 1.5, 1.9, 2.5, 3.1, 3.8, 4.7, 5.9, 7.0, 8.2, 9.5, 11.2, 13.5, 16.5, 20.0, 24.5, 30.0};
 
 int GetLandingHeight(int player) 
 {
-  return maxHeight[player];
+  return Height[maxHeight[player]];
 }
 
 int GetRowsRemoved(int player)
@@ -587,7 +598,7 @@ Tetris Block[100];
 double calc (int player)
 {
 	double player_score[2];
-	for (int i = 0; i < 2; i ++)
+	for (int i = player; i < player + 1; i ++)
 	{
 		player_score[i] = 
 			GetLandingHeight(i) * -4.500158825082766 +
@@ -597,7 +608,7 @@ double calc (int player)
 			GetNumberOfHoles(i) * -7.899265427351652 +
 			GetWellSums(i) * -3.3855972247263626;
 	}
-	return player_score[player] - 0.3 * player_score[player ^ 1];
+	return player_score[player];
 };
 
 const double INF = 1e30;
@@ -693,14 +704,27 @@ double alphabeta (int dep, double alpha, double beta, int player)
 		{
 			return - 15000 + dep;
 		}
+
 		for (int i = 0; i < v.size(); i ++)
 		{
 			copy(dep);
 			Tetris block = Block[dep >> 1];
 			block.set(v[i].x, v[i].y, v[i].o).place();
 			Util::eliminate(player);
-			Util::eliminate(player ^ 1);
-			Util::transfer();
+			v[i].val = calc(player);
+			recover(dep);
+		}
+		sort(v.begin(), v.end());
+		reverse(v.begin(), v.end());
+		int sz = min((int)v.size(), 10);
+
+		for (int i = 0; i < sz; i ++)
+		{
+			copy(dep);
+			Tetris block = Block[dep >> 1];
+			block.set(v[i].x, v[i].y, v[i].o).place();
+			
+			Util::eliminate(player);
 			ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
 			if (ret > alpha) 
 			{
@@ -779,7 +803,6 @@ double calc2 (int player)
 
 double alphabeta2 (int dep, double alpha, double beta, int player)
 {
-	// printf("%d %.2f %.2f %d\n", dep, alpha, beta, player);
 
 // 卡tmd时
 	if ((clock() - tim) / CLOCKS_PER_SEC > TIME_LIMIT) return -INF;
@@ -802,14 +825,12 @@ double alphabeta2 (int dep, double alpha, double beta, int player)
 			}
 		}
 		if (dep == MAXDEP)
-			return calc(player);
+		{
+			double ret = calc2(player);
+			//cout << ret << endl;
+ 			return ret;
+		}
 	}
-
-	double ret;
-	if (dep % 2 == 0)
-		ret = -INF;
-	else
-		ret = INF;
 
 // 判断当前是否是必胜 or 必败态
 	vector <data> v;
@@ -852,6 +873,13 @@ double alphabeta2 (int dep, double alpha, double beta, int player)
 	}
 
 // alpha-beta决策
+
+	double ret;
+	if (dep % 2 == 0)
+		ret = -INF;
+	else
+		ret = INF;
+
 	for (int k = 0; k < enemyBlocksType.size(); k ++)
 	{
 		for (int i = 0; i < v.size(); i ++)
@@ -870,8 +898,9 @@ double alphabeta2 (int dep, double alpha, double beta, int player)
 				if (ret > alpha) 
 				{
 					alpha = ret;
-					if (dep == 1)
+					if (dep == 2)
 					{
+						Util::printField();
 						tmp = Result(enemyBlocksType[k], v[i].x, v[i].y, v[i].o);
 					}
 				}
@@ -896,7 +925,6 @@ goodbye:
 void PRINT ()
 {
 	cout << ans.blockForEnemy << " " << ans.finalX << " " << ans.finalY << " " << ans.finalO << endl;
-	exit(0);
 }
 
 int main()
@@ -969,12 +997,11 @@ int main()
  
 	// 遇事不决先输出（平台上编译不会输出）
 	Util::printField();
- 	if (currBotColor == 1) swap(dep_pos[0], dep_pos[1]);
 	// 贪心决策
 	// 从下往上以各种姿态找到第一个位置，要求能够直着落下
 
 
-	if (maxHeight[0] < 15 && maxHeight[1] < 15)
+	if (maxHeight[0] < 19 && maxHeight[1] < 19, 1)
 	{
 		TIME_LIMIT = 0.475;
 		Block[0] = Tetris(nextTypeForColor[currBotColor], currBotColor);
@@ -984,7 +1011,13 @@ int main()
 			ab_block = -1;
 			alphabeta(1, -INF, INF, currBotColor);
 			if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
+			{
 				ans = tmp;
+			}
+			else
+			{
+				break;
+			}
 		}
 
 		int first_dep = MAXDEP;
@@ -997,7 +1030,13 @@ int main()
 			ab_block = -1;
 			alphabeta(1, -INF, INF, enemyColor);
 			if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
+			{
 				ans.blockForEnemy = tmp.blockForEnemy;
+			}
+			else
+			{
+				break;
+			}
 		}
 
 		PRINT();
@@ -1010,6 +1049,7 @@ int main()
 	}
 	else
 	{
+ 		if (currBotColor == 1) swap(dep_pos[0], dep_pos[1]);
 		TIME_LIMIT = 0.95;
 		Block[0] = Tetris(nextTypeForColor[enemyColor], enemyColor);
 		Block[1] = Tetris(nextTypeForColor[currBotColor], currBotColor);
@@ -1019,8 +1059,13 @@ int main()
 			alphabeta2(2, -INF, INF, currBotColor);
 			if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT) 
 				ans = tmp;
+			else
+				break;
 		}
 		PRINT();
+	#ifdef MEKTPOY
+		cout << MAXDEP << endl;
+	#endif
 	}
 	//block.set(finalX, finalY, finalO).place();
 	//calc2(block, currBotColor);
