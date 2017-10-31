@@ -79,6 +79,8 @@ const int rotateBlank[7][4][10] = {
 const int dx[3] = {-1 ,1, 0};
 const int dy[3] = {0, 0, -1};
 int dep_pos[2] = {1, 3};
+double blockValue[10];
+int blockCnt[10];
 
 void PRINT ();
 
@@ -605,8 +607,8 @@ double calc (int player)
 			GetRowsRemoved(i) * 3.4181268101392694 +
 			GetRowTransitions(i) * -3.2178882868487753 +
 			GetColumnTransitions(i) * -9.348695305445199 +
-			GetNumberOfHoles(i) * -9.899265427351652 +
-			GetWellSums(i) * -2.3855972247263626;
+			GetNumberOfHoles(i) * -7.899265427351652 +
+			GetWellSums(i) * -3.3855972247263626;
 	}
 	return player_score[player];
 };
@@ -725,13 +727,19 @@ double alphabeta (int dep, double alpha, double beta, int player)
 			block.set(v[i].x, v[i].y, v[i].o).place();
 			
 			Util::eliminate(player);
-			ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
+			double new_alphabeta = alphabeta(dep + 1, alpha, beta, player ^ 1);
+			ret = max(ret, new_alphabeta);
+			if (dep == 1)
+			{
+				blockValue[ab_block] += new_alphabeta;
+				blockCnt[ab_block] ++;
+			}
 			if (ret > alpha) 
 			{
 				alpha = ret;
 				if (dep == 1)
 				{
-					tmp = Result(ab_block, v[i].x, v[i].y, v[i].o);
+					tmp = Result(-1, v[i].x, v[i].y, v[i].o);
 				}
 			}
 			recover(dep);
@@ -1022,6 +1030,9 @@ int main()
 
 		int first_dep = MAXDEP;
 
+		memset (blockValue, 0, sizeof(blockValue));
+		memset (blockCnt, 0, sizeof(blockCnt));
+
 		TIME_LIMIT = 0.95;
 		Block[0] = Tetris(nextTypeForColor[enemyColor], enemyColor);
 		for (MAXDEP = 2; MAXDEP <= 50; MAXDEP += 2)
@@ -1031,13 +1042,26 @@ int main()
 			alphabeta(1, -INF, INF, enemyColor);
 			if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
 			{
-				ans.blockForEnemy = tmp.blockForEnemy;
+				for (int i = 0; i < 7; i ++)
+				{
+					double MAX = -INF;
+					if (blockCnt[i])
+					{
+						if (blockValue[i] / blockCnt[i] > MAX)
+						{
+							MAX = blockValue[i] / blockCnt[i];
+							ans.blockForEnemy = i;
+						}
+					}
+				}
 			}
 			else
 			{
 				break;
 			}
 		}
+
+
 
 		PRINT();
 
