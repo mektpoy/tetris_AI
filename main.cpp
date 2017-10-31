@@ -697,51 +697,6 @@ double alphabeta (int dep, double alpha, double beta, int player)
 
 	if (dep & 1)
 	{
-		double ret = -INF;
-		vector <data> v;
-		bfs (Block[dep >> 1], v);
-		if (v.empty())
-		{
-			return - 15000 + dep;
-		}
-
-		for (int i = 0; i < v.size(); i ++)
-		{
-			copy(dep);
-			Tetris block = Block[dep >> 1];
-			block.set(v[i].x, v[i].y, v[i].o).place();
-			Util::eliminate(player);
-			v[i].val = calc(player);
-			recover(dep);
-		}
-		sort(v.begin(), v.end());
-		reverse(v.begin(), v.end());
-		int sz = (int)v.size();
-
-		for (int i = 0; i < sz; i ++)
-		{
-			copy(dep);
-			Tetris block = Block[dep >> 1];
-			block.set(v[i].x, v[i].y, v[i].o).place();
-			
-			Util::eliminate(player);
-			ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
-			if (ret > alpha) 
-			{
-				alpha = ret;
-				if (dep == 1)
-				{
-					tmp = Result(ab_block, v[i].x, v[i].y, v[i].o);
-				}
-			}
-			recover(dep);
-			if (beta <= alpha) goto goodbye;
-		}
-	goodbye:
-		return ret;
-	}
-	else
-	{
 		if (dep == MAXDEP)
 			return calc(player ^ 1);
 		double ret = INF;
@@ -768,7 +723,7 @@ double alphabeta (int dep, double alpha, double beta, int player)
 		}
 		for (int i = 0; i < enemyBlocksType.size(); i ++)
 		{
-			Block[dep >> 1] = Tetris(enemyBlocksType[i], player ^ 1);
+			Block[dep + 1 >> 1] = Tetris(enemyBlocksType[i], player ^ 1);
 			double Bonus = 0.0;
 			if (turnID <= 5)
 			{
@@ -781,7 +736,7 @@ double alphabeta (int dep, double alpha, double beta, int player)
 			if (ret < beta)
 			{
 				beta = ret;
-				if (dep == 2)
+				if (dep == 1)
 				{
 					ab_block = enemyBlocksType[i];
 				}
@@ -789,6 +744,51 @@ double alphabeta (int dep, double alpha, double beta, int player)
 			if (beta <= alpha) goto goodbye2;
 		}
 	goodbye2:
+		return ret;
+	}
+	else
+	{
+		double ret = -INF;
+		vector <data> v;
+		bfs (Block[dep - 1 >> 1], v);
+		if (v.empty())
+		{
+			return - 15000 + dep;
+		}
+
+		for (int i = 0; i < v.size(); i ++)
+		{
+			copy(dep);
+			Tetris block = Block[dep - 1 >> 1];
+			block.set(v[i].x, v[i].y, v[i].o).place();
+			Util::eliminate(player);
+			v[i].val = calc(player);
+			recover(dep);
+		}
+		sort(v.begin(), v.end());
+		reverse(v.begin(), v.end());
+		int sz = (int)v.size();
+
+		for (int i = 0; i < sz; i ++)
+		{
+			copy(dep);
+			Tetris block = Block[dep - 1 >> 1];
+			block.set(v[i].x, v[i].y, v[i].o).place();
+			
+			Util::eliminate(player);
+			ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
+			if (ret > alpha) 
+			{
+				alpha = ret;
+				if (dep == 2)
+				{
+					tmp = Result(ab_block, v[i].x, v[i].y, v[i].o);
+				}
+			}
+			recover(dep);
+			if (beta <= alpha) goto goodbye;
+		}
+	goodbye:
 		return ret;
 	}
 }
@@ -1009,11 +1009,11 @@ int main()
 	// 从下往上以各种姿态找到第一个位置，要求能够直着落下
 
 
-	if (maxHeight[0] < 19 && maxHeight[1] < 19, 1)
+if (maxHeight[0] < 19 && maxHeight[1] < 19, 1)
 	{
 		TIME_LIMIT = 0.475;
 		Block[0] = Tetris(nextTypeForColor[currBotColor], currBotColor);
-		for (MAXDEP = 2; MAXDEP <= 50; MAXDEP += 2)
+		for (MAXDEP = 3; MAXDEP <= 51; MAXDEP += 2)
 		{
 			tmp = Result(-1, -1, -1, -1);
 			ab_block = -1;
@@ -1032,7 +1032,7 @@ int main()
 
 		TIME_LIMIT = 0.95;
 		Block[0] = Tetris(nextTypeForColor[enemyColor], enemyColor);
-		for (MAXDEP = 2; MAXDEP <= 50; MAXDEP += 2)
+		for (MAXDEP = 3; MAXDEP <= 51; MAXDEP += 2)
 		{
 			tmp = Result(-1, -1, -1, -1);
 			ab_block = -1;
