@@ -261,7 +261,10 @@ namespace Util
 			{
 				gridInfo[color][i - count + hasBonus] = now;
 				if (count)
+				{
 					gridInfo[color][i] = empty;
+					tmpInfo[color][i] = 0;
+				}
 			}
 		}
 		if (count == 0)
@@ -348,21 +351,21 @@ namespace Util
 			"##"
 		};
 		cout << "~~：墙，[]：块，##：新块" << endl;
-		for (int y = MAPHEIGHT + 1; y >= 0; y--)
+		for (int y = MAPHEIGHT; y >= 1; y--)
 		{
 			cout << i2s[0];
 			for (int x = 1; x <= MAPWIDTH; x++)
 			{
-				if (tmpInfo[0][y] >> x) cout << i2s[4];
-				cout << i2s[(gridInfo[0][y] >> x & 1) + 2];
+				if (tmpInfo[0][y] >> x & 1) cout << i2s[4];
+				else cout << i2s[(gridInfo[0][y] >> x & 1) + 2];
 			}
 			cout << i2s[0];
 
 			cout << i2s[0];
 			for (int x = 1; x <= MAPWIDTH; x++)
 			{
-				if (tmpInfo[1][y] >> x) cout << i2s[4];
-				cout << i2s[(gridInfo[1][y] >> x & 1) + 2];
+				if (tmpInfo[1][y] >> x & 1) cout << i2s[4];
+				else cout << i2s[(gridInfo[1][y] >> x & 1) + 2];
 			}
 			cout << i2s[0];
 			cout << endl;
@@ -401,11 +404,7 @@ struct data{
 
 double GetLandingHeight(int player) 
 {
-	int ret = 0;
-	for (int i = 0; i <= MAXDEP / 2; i ++)
-		ret += Block[i].blockY;
-	ret /= (MAXDEP / 2 + 1);
-	return ret;
+	return maxHeight[player];
 }
 
 int GetRowsRemoved(int player)
@@ -479,10 +478,9 @@ int GetNumberOfHoles(int player)
 
 int GetWellSums(int player) 
 {
-	return 0;
 	// Check for well cells in the "inner columns" of the board.
 	// "Inner columns" are the columns that aren't touching the edge of the board.
-/*
+
 	int well_sums = 0;
 	int *board = gridInfo[player] + 1;
 	for (int i = 1; i < MAPWIDTH - 1; ++i) 
@@ -560,7 +558,6 @@ int GetWellSums(int player)
 	}
 
 	return well_sums;
-*/
 
 }
 
@@ -571,21 +568,17 @@ double calc (int player)
 	#ifdef MEKTPOY
 	double cal = clock();
 	#endif
-	double player_score[2];
-	for (int i = player; i < player + 1; i ++)
-	{
-		player_score[i] = 
-			GetLandingHeight(i) * -4.500158825082766 +
-			GetRowsRemoved(i) * 3.4181268101392694 +
-			GetRowTransitions(i) * -3.2178882868487753 +
-			GetColumnTransitions(i) * -9.348695305445199 +
-			GetNumberOfHoles(i) * -7.899265427351652 +
-			GetWellSums(i) * -3.3855972247263626;
-	}
+	double player_score = 
+		GetLandingHeight(player) * -4.500158825082766 +
+		GetRowsRemoved(player) * 3.4181268101392694 +
+		GetRowTransitions(player) * -3.2178882868487753 +
+		GetColumnTransitions(player) * -9.348695305445199 +
+		GetNumberOfHoles(player) * -7.899265427351652 +
+		GetWellSums(player) * -3.3855972247263626;
 	#ifdef MEKTPOY
 	totalcal += (clock() - cal) / CLOCKS_PER_SEC;
 	#endif
-	return player_score[player];
+	return player_score;
 };
 
 const double INF = 1e30;
@@ -721,8 +714,10 @@ double alphabeta (int dep, double alpha, double beta, int player)
 		}
 		for (int i = 0; i < enemyBlocksType.size(); i ++)
 		{
+			typeCountForColor[player ^ 1][i] ++;
 			Block[dep + 1 >> 1] = Tetris(enemyBlocksType[i], player ^ 1);
 			ret = min(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
+			typeCountForColor[player ^ 1][i] --;
 			if (ret < beta)
 			{
 				beta = ret;
@@ -745,6 +740,7 @@ double alphabeta (int dep, double alpha, double beta, int player)
 		{
 			return - 15000 + dep;
 		}
+		/*
 		for (int i = 0; i < v.size(); i ++)
 		{
 			copy(dep);
@@ -755,16 +751,16 @@ double alphabeta (int dep, double alpha, double beta, int player)
 			recover(dep);
 		}
 		sort(v.begin(), v.end());
-		reverse(v.begin(), v.end());
-		int sz = min (7, (int)v.size());
+		*/
+		int sz = (int)v.size();
 		for (int i = 0; i < sz; i ++)
 		{
 			copy(dep);
 			Tetris &block = Block[dep - 1 >> 1];
 			block.set(v[i].x, v[i].y, v[i].o).place();
-			
 			Util::eliminate(player);
-			ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
+			double newVal = alphabeta(dep + 1, alpha, beta, player ^ 1);
+			ret = max(ret, newVal);
 			if (ret > alpha) 
 			{
 				alpha = ret;
@@ -1008,13 +1004,17 @@ int main()
 		{
 			tmp = last = Result(-1, -1, -1, -1);
 			ab_block = -1;
-			alphabeta(1, -INF, INF, enemyColor);
+			double t = alphabeta(1, -INF, INF, enemyColor);
 			if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
 			{
 				ans = tmp;
 				#ifdef MEKTPOY
+				/*
+					cout << t << endl;
+					cout << (clock() - tim) / CLOCKS_PER_SEC << endl;
 					cout << ab_block << endl;
 					cout << tmp.finalX << " " << tmp.finalY << " " << tmp.finalO << endl;
+				*/
 				#endif
 			}
 			else
