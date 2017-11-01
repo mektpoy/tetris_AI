@@ -400,7 +400,7 @@ struct data{
 
 const double Height[21] = {0.0, 0.2, 0.4, 0.8, 1.3, 1.9, 2.5, 3.2, 4.0, 4.9, 6.0, 7.1, 8.3, 9.5, 10.7, 11.9, 13.4, 14.9, 16.2, 18.5, 20.0};
 
-int GetLandingHeight(int player) 
+double GetLandingHeight(int player) 
 {
   return Height[maxHeight[player]] * 1.08;
 }
@@ -594,20 +594,27 @@ int GetWellSums(int player)
 }
 
 Tetris Block[100];
+double totalcal;
 
 double calc (int player)
 {
+	#ifdef MEKTPOY
+	double cal = clock();
+	#endif
 	double player_score[2];
 	for (int i = player; i < player + 1; i ++)
 	{
 		player_score[i] = 
 			GetLandingHeight(i) * -4.500158825082766 +
 			GetRowsRemoved(i) * 3.4181268101392694 +
-			GetRowTransitions(i) * -1.2178882868487753 +
-			GetColumnTransitions(i) * -3.348695305445199 +
-			GetNumberOfHoles(i) * -9.899265427351652 +
-			GetWellSums(i) * -2.3855972247263626;
+			GetRowTransitions(i) * -3.2178882868487753 +
+			GetColumnTransitions(i) * -9.348695305445199 +
+			GetNumberOfHoles(i) * -7.899265427351652 +
+			GetWellSums(i) * -3.3855972247263626;
 	}
+	#ifdef MEKTPOY
+	totalcal += (clock() - cal) / CLOCKS_PER_SEC;
+	#endif
 	return player_score[player];
 };
 
@@ -628,24 +635,38 @@ bool judge (int player, Tetris &block)
 }
 */
 
+double totalcp, totalrc;
+
 void copy (int depth)
 {
 	/*
 		todo
 		gridInfo需要常数优化
 	*/
+	#ifdef MEKTPOY
+	double cp = clock();
+	#endif
 	memcpy(temp_maxHeight[depth], maxHeight, sizeof(maxHeight));
 	memcpy(temp_elimCombo[depth], elimCombo, sizeof(elimCombo));
 	memcpy(temp_elimTotal[depth], elimTotal, sizeof(elimTotal));
 	memcpy(temp_girdInfo[depth], gridInfo, sizeof(gridInfo));
+	#ifdef MEKTPOY
+	totalcp += (clock() - cp) / CLOCKS_PER_SEC;
+	#endif
 }
 
 void recover (int depth)
 {
+	#ifdef MEKTPOY
+	double rc = clock();
+	#endif
 	memcpy(maxHeight, temp_maxHeight[depth], sizeof(maxHeight));
 	memcpy(elimCombo, temp_elimCombo[depth], sizeof(elimCombo));
 	memcpy(elimTotal, temp_elimTotal[depth], sizeof(elimTotal));
 	memcpy(gridInfo, temp_girdInfo[depth], sizeof(gridInfo));
+	#ifdef MEKTPOY
+	totalrc += (clock() - rc) / CLOCKS_PER_SEC;
+	#endif
 }
 
 inline void bfs(Tetris t, vector<data> &v)
@@ -724,15 +745,7 @@ double alphabeta (int dep, double alpha, double beta, int player)
 		for (int i = 0; i < enemyBlocksType.size(); i ++)
 		{
 			Block[dep + 1 >> 1] = Tetris(enemyBlocksType[i], player ^ 1);
-			double Bonus = 0.0;
-			if (turnID <= 5)
-			{
-				if (enemyBlocksType[i] == 2 && enemyBlocksType[i] == 3)
-				{
-					Bonus = 500.0;
-				}
-			}
-			ret = min(ret, Bonus + alphabeta(dep + 1, alpha, beta, player ^ 1));
+			ret = min(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
 			if (ret < beta)
 			{
 				beta = ret;
@@ -755,7 +768,7 @@ double alphabeta (int dep, double alpha, double beta, int player)
 		{
 			return - 15000 + dep;
 		}
-
+		/*
 		for (int i = 0; i < v.size(); i ++)
 		{
 			copy(dep);
@@ -767,8 +780,8 @@ double alphabeta (int dep, double alpha, double beta, int player)
 		}
 		sort(v.begin(), v.end());
 		reverse(v.begin(), v.end());
+		*/
 		int sz = (int)v.size();
-
 		for (int i = 0; i < sz; i ++)
 		{
 			copy(dep);
@@ -1009,7 +1022,7 @@ int main()
 	// 从下往上以各种姿态找到第一个位置，要求能够直着落下
 
 
-if (maxHeight[0] < 19 && maxHeight[1] < 19, 1)
+	if (maxHeight[0] < 19 && maxHeight[1] < 19, 1)
 	{
 		TIME_LIMIT = 0.475;
 		Block[0] = Tetris(nextTypeForColor[currBotColor], currBotColor);
@@ -1021,6 +1034,10 @@ if (maxHeight[0] < 19 && maxHeight[1] < 19, 1)
 			if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
 			{
 				ans = tmp;
+				#ifdef MEKTPOY
+					cout << ab_block << endl;
+					cout << tmp.finalX << " " << tmp.finalY << " " << tmp.finalO << endl;
+				#endif
 			}
 			else
 			{
@@ -1075,6 +1092,7 @@ if (maxHeight[0] < 19 && maxHeight[1] < 19, 1)
 		cout << MAXDEP << endl;
 	#endif
 	}
+	cout << totalcp << " " << totalrc << " " << totalcal << endl;
 	//block.set(finalX, finalY, finalO).place();
 	//calc2(block, currBotColor);
 	//block.set(finalX, finalY, finalO).place2();
