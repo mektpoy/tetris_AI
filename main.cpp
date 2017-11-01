@@ -400,16 +400,16 @@ struct data{
 	}
 };
 
-// const double Height[21] = {0.0, 0.2, 0.4, 0.8, 1.3, 1.9, 2.5, 3.2, 4.0, 4.9, 6.0, 7.1, 8.3, 9.5, 10.7, 11.9, 13.4, 14.9, 16.2, 18.5, 20.0};
+const double Height[21] = {0.0, 0.2, 0.4, 0.7, 1.1, 1.5, 1.9, 2.5, 3.1, 3.8, 4.7, 5.9, 7.0, 8.2, 9.5, 11.2, 13.5, 16.5, 20.0, 24.5, 30.0};
 
 double GetLandingHeight(int player) 
 {
-	return maxHeight[player];
+	return Height[maxHeight[player]];
 }
 
 int GetRowsRemoved(int player)
 {
-	return elimTotal[player];
+	return elimTotal[player] * 2;
 }
 
 int GetRowTransitions(int player) 
@@ -429,7 +429,7 @@ int GetRowTransitions(int player)
 			}
 			last_bit = bit;
 		}
-		if (bit == 0) ++ ret;
+		if (bit == 0) ret ++;
 		last_bit = 1;
 	}
 	return ret;
@@ -473,6 +473,7 @@ int GetNumberOfHoles(int player)
 		ret += __builtin_popcount(row_holes);
 		previous_row = board[i];
 	}
+	ret *= 2;
 	return ret;
 }
 
@@ -563,11 +564,37 @@ int GetWellSums(int player)
 
 double totalcal;
 
+int GetCanUses(int player)
+{
+	int maxCount = 0, minCount = 99;
+	int ret = 0;
+	for (int i = 0; i < 7; i++)
+	{
+		if (typeCountForColor[player][i] > maxCount)
+			maxCount = typeCountForColor[player][i];
+		if (typeCountForColor[player][i] < minCount)
+			minCount = typeCountForColor[player][i];
+	}
+	if (maxCount - minCount == 2)
+	{
+		// 危险，找一个不是最大的块给对方吧
+		for (int i = 0; i < 7; i ++)
+			if (typeCountForColor[player][i] != maxCount)
+				ret ++;
+	}
+	else
+	{
+		ret = 7;
+	}
+	return ret;
+}
+
 double calc (int player)
 {
 	#ifdef MEKTPOY
 	double cal = clock();
 	#endif
+
 	double player_score = 
 		GetLandingHeight(player) * -4.500158825082766 +
 		GetRowsRemoved(player) * 3.4181268101392694 +
