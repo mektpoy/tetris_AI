@@ -378,7 +378,7 @@ struct Result
 	Result(int blockForEnemy, int finalX, int finalY, int finalO) :
 		blockForEnemy(blockForEnemy), finalX(finalX), finalY(finalY), finalO(finalO) {}
 	Result() {}
-}ans, tmp;
+}ans, tmp, last;
 
 int ab_block;
 
@@ -738,7 +738,7 @@ double alphabeta (int dep, double alpha, double beta, int player)
 				beta = ret;
 				if (dep == 1)
 				{
-					ab_block = enemyBlocksType[i];
+					ab_block = enemyBlocksType[i]; tmp = last;
 				}
 			}
 			if (beta <= alpha) goto goodbye2;
@@ -782,7 +782,7 @@ double alphabeta (int dep, double alpha, double beta, int player)
 				alpha = ret;
 				if (dep == 2)
 				{
-					tmp = Result(ab_block, v[i].x, v[i].y, v[i].o);
+					last = Result(-1, v[i].x, v[i].y, v[i].o);
 				}
 			}
 			recover(dep);
@@ -1015,9 +1015,9 @@ if (maxHeight[0] < 19 && maxHeight[1] < 19, 1)
 		Block[0] = Tetris(nextTypeForColor[currBotColor], currBotColor);
 		for (MAXDEP = 3; MAXDEP <= 51; MAXDEP += 2)
 		{
-			tmp = Result(-1, -1, -1, -1);
+			tmp = last = Result(-1, -1, -1, -1);
 			ab_block = -1;
-			alphabeta(1, -INF, INF, currBotColor);
+			alphabeta(1, -INF, INF, enemyColor);
 			if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
 			{
 				ans = tmp;
@@ -1034,12 +1034,12 @@ if (maxHeight[0] < 19 && maxHeight[1] < 19, 1)
 		Block[0] = Tetris(nextTypeForColor[enemyColor], enemyColor);
 		for (MAXDEP = 3; MAXDEP <= 51; MAXDEP += 2)
 		{
-			tmp = Result(-1, -1, -1, -1);
+			tmp = last = Result(-1, -1, -1, -1);
 			ab_block = -1;
-			alphabeta(1, -INF, INF, enemyColor);
+			alphabeta(1, -INF, INF, currBotColor);
 			if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
 			{
-				ans.blockForEnemy = tmp.blockForEnemy;
+				ans.blockForEnemy = ab_block;
 			}
 			else
 			{
