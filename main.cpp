@@ -28,12 +28,11 @@ int MAXDEP, turnID;
  
 // 先y后x，记录地图状态，0为空，1为以前放置，2为刚刚放置，负数为越界
 // （2用于在清行后将最后一步撤销再送给对方）
-int tmpInfo[2][MAPHEIGHT + 2] = { 0 };
-int temp_gridInfo[110][2][MAPHEIGHT + 2] = { 0 };
-int gridInfo[2][MAPHEIGHT + 2] = { 0 };
+int temp_girdInfo[110][2][MAPHEIGHT + 2][MAPWIDTH + 2] = { 0 };
+int gridInfo[2][MAPHEIGHT + 2][MAPWIDTH + 2] = { 0 };
  
 // 代表分别向对方转移的行
-int trans[2][6] = { 0 };
+int trans[2][6][MAPWIDTH + 2] = { 0 };
  
 // 转移行数
 int transCount[2] = { 0 };
@@ -123,7 +122,7 @@ public:
 			tmpY = y + shape[o][2 * i + 1];
 			if (tmpX < 1 || tmpX > MAPWIDTH ||
 				tmpY < 1 || tmpY > MAPHEIGHT ||
-				(gridInfo[color][tmpY] >> tmpX & 1) != 0)
+				gridInfo[color][tmpY][tmpX] != 0)
 				return false;
 		}
 		return true;
@@ -132,9 +131,9 @@ public:
 	// 判断是否落地
 	inline bool onGround()
 	{
-		if (isValid(-1, blockY - 1))
-			return false;
-		return true;
+		if (isValid() && !isValid(-1, blockY - 1))
+			return true;
+		return false;
 	}
  
 	// 将方块放置在场地上
@@ -146,9 +145,9 @@ public:
 		int i, tmpX, tmpY;
 		for (i = 0; i < 4; i++)
 		{
-			tmpX = blockX + shape[orientation][i << 1];
-			tmpY = blockY + shape[orientation][(i << 1) | 1];
-			tmpInfo[color][tmpY] |= (1 << tmpX);
+			tmpX = blockX + shape[orientation][2 * i];
+			tmpY = blockY + shape[orientation][2 * i + 1];
+			gridInfo[color][tmpY][tmpX] = 2;
 		}
 		return true;
 	}
@@ -178,15 +177,15 @@ public:
 				blankY = blockY + rotateBlank[blockType][fromO][2 * i + 1];
 				if (blankX == blockX && blankY == blockY)
 					break;
-				if (gridInfo[color][blankY] >> blankX & 1)
+				if (gridInfo[color][blankY][blankX] != 0)
 					return false;
 			}
  
-			fromO = (fromO + 1) & 3;
+			fromO = (fromO + 1) % 4;
 		}
 		return true;
 	}
-}Block[100];
+};
  
 // 围一圈护城河
 void init()
@@ -194,20 +193,20 @@ void init()
 	int i;
 	for (i = 0; i < MAPHEIGHT + 2; i++)
 	{
-		gridInfo[1][i] |= 1;
-		gridInfo[1][i] |= (1 << MAPWIDTH + 1);
-		gridInfo[0][i] |= 1;
-		gridInfo[0][i] |= (1 << MAPWIDTH + 1);
+		gridInfo[1][i][0] = gridInfo[1][i][MAPWIDTH + 1] = -2;
+		gridInfo[0][i][0] = gridInfo[0][i][MAPWIDTH + 1] = -2;
 	}
-	gridInfo[1][0] = gridInfo[1][MAPHEIGHT + 1] = (1 << MAPWIDTH + 2) - 1;
-	gridInfo[0][0] = gridInfo[0][MAPHEIGHT + 1] = (1 << MAPWIDTH + 2) - 1;
+	for (i = 0; i < MAPWIDTH + 2; i++)
+	{
+		gridInfo[1][0][i] = gridInfo[1][MAPHEIGHT + 1][i] = -2;
+		gridInfo[0][0][i] = gridInfo[0][MAPHEIGHT + 1][i] = -2;
+	}
 }
  
 namespace Util
 {
  
 	// 检查能否从场地顶端直接落到当前位置
-	/*
 	inline bool checkDirectDropTo(int color, int blockType, int x, int y, int o)
 	{
 		auto &def = blockShape[blockType][o];
@@ -222,47 +221,56 @@ namespace Util
 			}
 		return true;
 	}
- 	*/
-
+ 
 	// 消去行
 	void eliminate(int color)
 	{
 		int &count = transCount[color] = 0;
-		int i, j, firstFull = 1, hasBonus = 0;
+		int i, j, emptyFlag, fullFlag, firstFull = 1, hasBonus = 0;
 		maxHeight[color] = MAPHEIGHT;
-
-		int full = (1 << MAPWIDTH + 2) - 1;
-		int empty = (1 << MAPWIDTH + 1) + 1;
-
 		for (i = 1; i <= MAPHEIGHT; i++)
 		{
-			int now = gridInfo[color][i] | tmpInfo[color][i];
-			tmpInfo[color][i] = 0;
-			if (now == full)
+			emptyFlag = 1;
+			fullFlag = 1;
+			for (j = 1; j <= MAPWIDTH; j++)
+			{
+				if (gridInfo[color][i][j] == 0)
+					fullFlag = 0;
+				else
+					emptyFlag = 0;
+			}
+			if (fullFlag)
 			{
 				if (firstFull && ++elimCombo[color] >= 3)
 				{
 					// 奖励行
-					trans[color][count] = gridInfo[color][i];
+					for (j = 1; j <= MAPWIDTH; j++)
+						trans[color][count][j] = gridInfo[color][i][j] == 1 ? 1 : 0;
 					count++;
 					hasBonus = 1;
 				}
 				firstFull = 0;
-				trans[color][count] = gridInfo[color][i];
-				gridInfo[color][i] = empty;
+				for (j = 1; j <= MAPWIDTH; j++)
+				{
+					// 注意这里只转移以前的块，不包括最后一次落下的块（“撤销最后一步”）
+					trans[color][count][j] = gridInfo[color][i][j] == 1 ? 1 : 0;
+					gridInfo[color][i][j] = 0;
+				}
 				count++;
 			}
-			else if (now == empty)
+			else if (emptyFlag)
 			{
 				maxHeight[color] = i - 1;
 				break;
 			}
 			else
-			{
-				gridInfo[color][i - count + hasBonus] = now;
-				if (count)
-					gridInfo[color][i] = empty;
-			}
+				for (j = 1; j <= MAPWIDTH; j++)
+				{
+					gridInfo[color][i - count + hasBonus][j] =
+						gridInfo[color][i][j] > 0 ? 1 : gridInfo[color][i][j];
+					if (count)
+						gridInfo[color][i][j] = 0;
+				}
 		}
 		if (count == 0)
 			elimCombo[color] = 0;
@@ -287,10 +295,12 @@ namespace Util
 			int i, j;
  
 			for (i = h2; i > transCount[color1]; i--)
-				gridInfo[color2][i] = gridInfo[color2][i - transCount[color1]];
+				for (j = 1; j <= MAPWIDTH; j++)
+					gridInfo[color2][i][j] = gridInfo[color2][i - transCount[color1]][j];
  
 			for (i = transCount[color1]; i > 0; i--)
-				gridInfo[color2][i] = trans[color1][i - 1];
+				for (j = 1; j <= MAPWIDTH; j++)
+					gridInfo[color2][i][j] = trans[color1][i - 1][j];
 			return -1;
 		}
 		else
@@ -304,22 +314,25 @@ namespace Util
  
 			int i, j;
 			for (i = h2; i > transCount[color1]; i--)
-				gridInfo[color2][i] = gridInfo[color2][i - transCount[color1]];
+				for (j = 1; j <= MAPWIDTH; j++)
+					gridInfo[color2][i][j] = gridInfo[color2][i - transCount[color1]][j];
  
 			for (i = transCount[color1]; i > 0; i--)
-				gridInfo[color2][i] = trans[color1][i - 1];
+				for (j = 1; j <= MAPWIDTH; j++)
+					gridInfo[color2][i][j] = trans[color1][i - 1][j];
  
 			for (i = h1; i > transCount[color2]; i--)
-				gridInfo[color1][i] = gridInfo[color1][i - transCount[color2]];
+				for (j = 1; j <= MAPWIDTH; j++)
+					gridInfo[color1][i][j] = gridInfo[color1][i - transCount[color2]][j];
  
 			for (i = transCount[color2]; i > 0; i--)
-				gridInfo[color1][i] = trans[color2][i - 1];
+				for (j = 1; j <= MAPWIDTH; j++)
+					gridInfo[color1][i][j] = trans[color2][i - 1][j];
  
 			return -1;
 		}
 	}
  
- /*
 	// 颜色方还能否继续游戏
 	inline bool canPut(int color, int blockType)
 	{
@@ -334,7 +347,6 @@ namespace Util
 				}
 		return false;
 	}
-*/
  
 	// 打印场地用于调试
 	inline void printField()
@@ -350,21 +362,10 @@ namespace Util
 		cout << "~~：墙，[]：块，##：新块" << endl;
 		for (int y = MAPHEIGHT + 1; y >= 0; y--)
 		{
-			cout << i2s[0];
-			for (int x = 1; x <= MAPWIDTH; x++)
-			{
-				if (tmpInfo[0][y] >> x & 1) cout << i2s[4];
-				cout << i2s[(gridInfo[0][y] >> x & 1) + 2];
-			}
-			cout << i2s[0];
-
-			cout << i2s[0];
-			for (int x = 1; x <= MAPWIDTH; x++)
-			{
-				if (tmpInfo[1][y] >> x & 1) cout << i2s[4];
-				cout << i2s[(gridInfo[1][y] >> x & 1) + 2];
-			}
-			cout << i2s[0];
+			for (int x = 0; x <= MAPWIDTH + 1; x++)
+				cout << i2s[gridInfo[0][y][x] + 2];
+			for (int x = 0; x <= MAPWIDTH + 1; x++)
+				cout << i2s[gridInfo[1][y][x] + 2];
 			cout << endl;
 		}
 #endif
@@ -377,7 +378,7 @@ struct Result
 	Result(int blockForEnemy, int finalX, int finalY, int finalO) :
 		blockForEnemy(blockForEnemy), finalX(finalX), finalY(finalY), finalO(finalO) {}
 	Result() {}
-}ans, tmp, last;
+}ans, tmp;
 
 int ab_block;
 
@@ -397,20 +398,33 @@ struct data{
 	}
 };
 
-// const double Height[21] = {0.0, 0.2, 0.4, 0.8, 1.3, 1.9, 2.5, 3.2, 4.0, 4.9, 6.0, 7.1, 8.3, 9.5, 10.7, 11.9, 13.4, 14.9, 16.2, 18.5, 20.0};
+const double Height[21] = {0.0, 0.2, 0.4, 0.8, 1.3, 1.9, 2.5, 3.2, 4.0, 4.9, 6.0, 7.1, 8.3, 9.5, 10.7, 11.9, 13.4, 14.9, 16.2, 18.5, 20.0};
 
-double GetLandingHeight(int player) 
+int GetLandingHeight(int player) 
 {
-	double ret = 0;
-	for (int i = 0; i <= MAXDEP / 2; i ++)
-		ret += Block[i].blockY;
-	ret /= (MAXDEP / 2 + 1);
-	return ret;
+  return Height[maxHeight[player]] * 1.08;
 }
 
 int GetRowsRemoved(int player)
 {
 	return elimTotal[player];
+	/*
+	int ret = 0;
+	for (int i = 1; i <= MAPHEIGHT; i++)
+	{
+		int fullFlag = 1;
+		for (int j = 1; j <= MAPWIDTH; j++)
+		{
+			if (gridInfo[player][i][j] == 0)
+				fullFlag = 0;
+		}
+		if (fullFlag)
+		{
+			ret ++;
+		}
+	}
+	return ret;	
+	*/
 }
 
 int GetRowTransitions(int player) 
@@ -423,7 +437,7 @@ int GetRowTransitions(int player)
 		int bit;
 		for (int j = 1; j <= MAPWIDTH; j ++)
 		{
-			bit = (gridInfo[player][i] >> j & 1);
+			bit = (gridInfo[player][i][j] > 0);
 			if (bit != last_bit)
 			{
 				++ ret;
@@ -442,21 +456,23 @@ int GetRowTransitions(int player)
  * on the same row and vice versa.
  */
 
-int GetColumnTransitions(int player) 
-{
+int GetColumnTransitions(int player) {
 	int ret = 0;
 	int last_bit = 1;
 
 	for (int i = 1; i <= MAPWIDTH; i ++)
 	{
+		int bit;
 		for (int j = 1; j <= MAPHEIGHT; j ++)
 		{
-			if ((gridInfo[player][j] >> i & 1) != last_bit)
+			bit = (gridInfo[player][j][i] > 0);
+			if (bit != last_bit)
 			{
 				++ ret;
 			}
-			last_bit = (gridInfo[player][j] >> i & 1);
+			last_bit = bit;
 		}
+		if (bit == 0) ++ ret;
 		last_bit = 1;
 	}
 	return ret;
@@ -466,24 +482,40 @@ int GetNumberOfHoles(int player)
 {
 	int ret = 0;
 	int row_holes = 0x0000;
-	int *board = gridInfo[player];
-	int previous_row = board[MAPHEIGHT];
+	int previous_row = 0;
+	for (int i = 1; i <= MAPWIDTH; i ++)
+	{
+		previous_row = (previous_row << 1) | (gridInfo[player][MAPHEIGHT][i] > 0);
+	}
+
 	for (int i = MAPHEIGHT - 1; i >= 1; i --)
 	{
-		row_holes = ~board[i] & (previous_row | row_holes);
-		ret += __builtin_popcount(row_holes);
-		previous_row = board[i];
+		int row = 0;
+		for (int j = 1; j <= MAPWIDTH; j ++)
+			row = (row << 1) | (gridInfo[player][i][j] > 0);
+		row_holes = ~row & (previous_row | row_holes);
+
+		for (int j = 0; j < MAPWIDTH; j ++)
+			ret += ((row_holes >> j) & 1);
+
+		previous_row = row;
 	}
+
 	return ret;
 }
 
 int GetWellSums(int player) 
 {
+	int well_sums = 0;
 	// Check for well cells in the "inner columns" of the board.
 	// "Inner columns" are the columns that aren't touching the edge of the board.
-
-	int well_sums = 0;
-	int *board = gridInfo[player] + 1;
+	int board[21];
+	for (int i = 1; i <= MAPHEIGHT; i ++)
+	{
+		board[i] = 0;
+		for (int j = 1; j <= MAPWIDTH; j ++)
+			board[i] = (board[i] << 1) | (gridInfo[player][i][j] > 0);
+	}
 	for (int i = 1; i < MAPWIDTH - 1; ++i) 
 	{
 		for (int j = MAPHEIGHT - 1; j >= 0; --j) 
@@ -559,31 +591,23 @@ int GetWellSums(int player)
 	}
 
 	return well_sums;
-
-
 }
 
-double totalcal;
+Tetris Block[100];
 
 double calc (int player)
 {
-	#ifdef MEKTPOY
-	double cal = clock();
-	#endif
 	double player_score[2];
 	for (int i = player; i < player + 1; i ++)
 	{
 		player_score[i] = 
 			GetLandingHeight(i) * -4.500158825082766 +
 			GetRowsRemoved(i) * 3.4181268101392694 +
-			GetRowTransitions(i) * -3.2178882868487753 +
-			GetColumnTransitions(i) * -9.348695305445199 +
-			GetNumberOfHoles(i) * -7.899265427351652 +
-			GetWellSums(i) * -3.3855972247263626;
+			GetRowTransitions(i) * -1.2178882868487753 +
+			GetColumnTransitions(i) * -3.348695305445199 +
+			GetNumberOfHoles(i) * -9.899265427351652 +
+			GetWellSums(i) * -2.3855972247263626;
 	}
-	#ifdef MEKTPOY
-	totalcal += (clock() - cal) / CLOCKS_PER_SEC;
-	#endif
 	return player_score[player];
 };
 
@@ -604,66 +628,42 @@ bool judge (int player, Tetris &block)
 }
 */
 
-double totalcp, totalrc;
-
 void copy (int depth)
 {
 	/*
 		todo
 		gridInfo需要常数优化
 	*/
-	#ifdef MEKTPOY
-	double cp = clock();
-	#endif
 	memcpy(temp_maxHeight[depth], maxHeight, sizeof(maxHeight));
 	memcpy(temp_elimCombo[depth], elimCombo, sizeof(elimCombo));
 	memcpy(temp_elimTotal[depth], elimTotal, sizeof(elimTotal));
-	memcpy(temp_gridInfo[depth], gridInfo, sizeof(gridInfo));
-	#ifdef MEKTPOY
-	totalcp += (clock() - cp) / CLOCKS_PER_SEC;
-	#endif
+	memcpy(temp_girdInfo[depth], gridInfo, sizeof(gridInfo));
 }
 
 void recover (int depth)
 {
-	#ifdef MEKTPOY
-	double rc = clock();
-	#endif
 	memcpy(maxHeight, temp_maxHeight[depth], sizeof(maxHeight));
 	memcpy(elimCombo, temp_elimCombo[depth], sizeof(elimCombo));
 	memcpy(elimTotal, temp_elimTotal[depth], sizeof(elimTotal));
-	memcpy(gridInfo, temp_gridInfo[depth], sizeof(gridInfo));
-	#ifdef MEKTPOY
-	totalrc += (clock() - rc) / CLOCKS_PER_SEC;
-	#endif
+	memcpy(gridInfo, temp_girdInfo[depth], sizeof(gridInfo));
 }
 
 inline void bfs(Tetris t, vector<data> &v)
 {
 	queue <data> Q;
 	memset(vis, 0, sizeof(vis));
-
 	for (int x = 1; x <= MAPWIDTH; x++)
 	{
-		for (int o = 0; o < 4; o++)
+		bool flag[4]; int cnt = 0;
+		memset(flag, 0, sizeof (flag));
+		for (int y = MAPHEIGHT; y; y--)
 		{
-			for (int y = MAPHEIGHT; y; y--)
-			{
-				auto &def = blockShape[t.blockType][o];
-				for (int i = 0; i < 4; i ++)
+			for (int o = 0; o < 4; o++)
+				if (!flag[o] && Util::checkDirectDropTo(t.color, t.blockType, x, y, o))
 				{
-					int _x = def[i << 1] + x, _y = def[i << 1 | 1] + y;
-					if (_y > MAPHEIGHT)
-						continue;
-					if (_y < 1 || _x < 1 || _x > MAPWIDTH || (gridInfo[t.color][_y] >> _x & 1))
-						goto gg;
+					vis[x][y][o] = 1; Q.push(data(x, y, o)); flag[o] = 1; ++cnt;
 				}
-				if (t.isValid(x, y, o))
-				{
-					vis[x][y][o] = 1; Q.push(data(x, y, o)); break;
-				}
-			}
-			gg: 1 == 1;
+			if (cnt == 4) break;
 		}
 	}
 
@@ -677,9 +677,12 @@ inline void bfs(Tetris t, vector<data> &v)
 			if (vis[xx][yy][k.o] || !t.isValid(xx, yy, k.o)) continue;
 			vis[xx][yy][k.o] = 1; Q.push(data(xx, yy, k.o));
 		}
-		if (vis[k.x][k.y][(k.o + 1) & 3]) continue;
-		if (t.set(k.x, k.y, k.o).rotation((k.o + 1) & 3))
-			vis[k.x][k.y][(k.o + 1) & 3] = 1, Q.push(data(k.x, k.y, (k.o + 1) & 3));
+		for (int o = 0; o < 4; o++)
+		{
+			if (vis[k.x][k.y][o]) continue;
+			if (t.set(k.x, k.y, k.o).rotation(o))
+				vis[k.x][k.y][o] = 1, Q.push(data(k.x, k.y, k.o));
+		}
 	}
 	for (int x = 1; x <= MAPWIDTH; x++)
 		for (int y = 1; y <= MAPHEIGHT; y++)
@@ -693,6 +696,51 @@ double alphabeta (int dep, double alpha, double beta, int player)
 	if ((clock() - tim) / CLOCKS_PER_SEC > TIME_LIMIT) return -INF;
 
 	if (dep & 1)
+	{
+		double ret = -INF;
+		vector <data> v;
+		bfs (Block[dep >> 1], v);
+		if (v.empty())
+		{
+			return - 15000 + dep;
+		}
+
+		for (int i = 0; i < v.size(); i ++)
+		{
+			copy(dep);
+			Tetris block = Block[dep >> 1];
+			block.set(v[i].x, v[i].y, v[i].o).place();
+			Util::eliminate(player);
+			v[i].val = calc(player);
+			recover(dep);
+		}
+		sort(v.begin(), v.end());
+		reverse(v.begin(), v.end());
+		int sz = (int)v.size();
+
+		for (int i = 0; i < sz; i ++)
+		{
+			copy(dep);
+			Tetris block = Block[dep >> 1];
+			block.set(v[i].x, v[i].y, v[i].o).place();
+			
+			Util::eliminate(player);
+			ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
+			if (ret > alpha) 
+			{
+				alpha = ret;
+				if (dep == 1)
+				{
+					tmp = Result(ab_block, v[i].x, v[i].y, v[i].o);
+				}
+			}
+			recover(dep);
+			if (beta <= alpha) goto goodbye;
+		}
+	goodbye:
+		return ret;
+	}
+	else
 	{
 		if (dep == MAXDEP)
 			return calc(player ^ 1);
@@ -720,14 +768,22 @@ double alphabeta (int dep, double alpha, double beta, int player)
 		}
 		for (int i = 0; i < enemyBlocksType.size(); i ++)
 		{
-			Block[dep + 1 >> 1] = Tetris(enemyBlocksType[i], player ^ 1);
-			ret = min(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
+			Block[dep >> 1] = Tetris(enemyBlocksType[i], player ^ 1);
+			double Bonus = 0.0;
+			if (turnID <= 5)
+			{
+				if (enemyBlocksType[i] == 2 && enemyBlocksType[i] == 3)
+				{
+					Bonus = 500.0;
+				}
+			}
+			ret = min(ret, Bonus + alphabeta(dep + 1, alpha, beta, player ^ 1));
 			if (ret < beta)
 			{
 				beta = ret;
-				if (dep == 1)
+				if (dep == 2)
 				{
-					ab_block = enemyBlocksType[i]; tmp = last;
+					ab_block = enemyBlocksType[i];
 				}
 			}
 			if (beta <= alpha) goto goodbye2;
@@ -735,55 +791,23 @@ double alphabeta (int dep, double alpha, double beta, int player)
 	goodbye2:
 		return ret;
 	}
-	else
-	{
-		double ret = -INF;
-		vector <data> v;
-		bfs (Block[dep - 1 >> 1], v);
-		if (v.empty())
-		{
-			return - 15000 + dep;
-		}
-		for (int i = 0; i < v.size(); i ++)
-		{
-			copy(dep);
-			Tetris block = Block[dep - 1 >> 1];
-			block.set(v[i].x, v[i].y, v[i].o).place();
-			Util::eliminate(player);
-			v[i].val = calc(player);
-			recover(dep);
-		}
-		sort(v.begin(), v.end());
-		reverse(v.begin(), v.end());
-		int sz = min (7, (int)v.size());
-		for (int i = 0; i < sz; i ++)
-		{
-			copy(dep);
-			Tetris &block = Block[dep - 1 >> 1];
-			block.set(v[i].x, v[i].y, v[i].o).place();
-			
-			Util::eliminate(player);
-			ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
-			if (ret > alpha) 
-			{
-				alpha = ret;
-				if (dep == 2)
-				{
-					last = Result(-1, v[i].x, v[i].y, v[i].o);
-				}
-			}
-			recover(dep);
-			if (beta <= alpha) goto goodbye;
-		}
-	goodbye:
-		return ret;
-	}
 }
 
-int GetLandingHeight2(int player) 
+double calc2 (int player)
 {
-	return maxHeight[player];
-}
+	double player_score[2];
+	for (int i = 0; i < 2; i ++)
+	{
+		player_score[i] = 
+			GetLandingHeight(i) * -4.500158825082766 +
+			GetRowsRemoved(i) * 3.4181268101392694 +
+			GetRowTransitions(i) * -3.2178882868487753 +
+			GetColumnTransitions(i) * -9.348695305445199 +
+			GetNumberOfHoles(i) * -9.899265427351652 +
+			GetWellSums(i) * -2.3855972247263626;
+	}
+	return player_score[player] - player_score[player ^ 1];
+};
 
 double alphabeta2 (int dep, double alpha, double beta, int player)
 {
@@ -792,10 +816,10 @@ double alphabeta2 (int dep, double alpha, double beta, int player)
 	if ((clock() - tim) / CLOCKS_PER_SEC > TIME_LIMIT) return -INF;
 
 // 判断当前是否已经赢了 or 输了
-	if (dep > 2 && dep % 2 == 0)
+	if (dep % 2 == 0)
 	{
-		Util::eliminate(0);
-		Util::eliminate(1);
+		Util::eliminate(player);
+		Util::eliminate(player ^ 1);
 		int result = Util::transfer();
 		if (result != -1)
 		{
@@ -810,7 +834,8 @@ double alphabeta2 (int dep, double alpha, double beta, int player)
 		}
 		if (dep == MAXDEP)
 		{
-			double ret = calc(player);
+			double ret = calc2(player);
+			//cout << ret << endl;
  			return ret;
 		}
 	}
@@ -869,14 +894,12 @@ double alphabeta2 (int dep, double alpha, double beta, int player)
 		{
 			copy(dep);
 			Block[dep] = Tetris(enemyBlocksType[k], player ^ 1);
-			Tetris &block = Block[dep - dep_pos[player]];
+			Tetris block = Block[dep - dep_pos[player]];
 			block.set(v[i].x, v[i].y, v[i].o).place();
 
 			double new_alphabeta;
-			
-			//printf("%d %d %d %d\n", enemyBlocksType[k], v[i].x, v[i].y, v[i].o);
+
 			new_alphabeta = alphabeta2(dep + 1, alpha, beta, player ^ 1);
-			//cout << new_alphabeta << endl;
 			if (dep % 2 == 0)
 			{
 				ret = max(ret, new_alphabeta);
@@ -885,6 +908,7 @@ double alphabeta2 (int dep, double alpha, double beta, int player)
 					alpha = ret;
 					if (dep == 2)
 					{
+						Util::printField();
 						tmp = Result(enemyBlocksType[k], v[i].x, v[i].y, v[i].o);
 					}
 				}
@@ -985,22 +1009,18 @@ int main()
 	// 从下往上以各种姿态找到第一个位置，要求能够直着落下
 
 
-	if (maxHeight[0] < 19 && maxHeight[1] < 19, 0)
+	if (maxHeight[0] < 19 && maxHeight[1] < 19, 1)
 	{
 		TIME_LIMIT = 0.475;
 		Block[0] = Tetris(nextTypeForColor[currBotColor], currBotColor);
-		for (MAXDEP = 3; MAXDEP <= 51; MAXDEP += 2)
+		for (MAXDEP = 2; MAXDEP <= 50; MAXDEP += 2)
 		{
-			tmp = last = Result(-1, -1, -1, -1);
+			tmp = Result(-1, -1, -1, -1);
 			ab_block = -1;
-			alphabeta(1, -INF, INF, enemyColor);
+			alphabeta(1, -INF, INF, currBotColor);
 			if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
 			{
 				ans = tmp;
-				#ifdef MEKTPOY
-					cout << ab_block << endl;
-					cout << tmp.finalX << " " << tmp.finalY << " " << tmp.finalO << endl;
-				#endif
 			}
 			else
 			{
@@ -1012,14 +1032,14 @@ int main()
 
 		TIME_LIMIT = 0.95;
 		Block[0] = Tetris(nextTypeForColor[enemyColor], enemyColor);
-		for (MAXDEP = 3; MAXDEP <= 51; MAXDEP += 2)
+		for (MAXDEP = 2; MAXDEP <= 50; MAXDEP += 2)
 		{
-			tmp = last = Result(-1, -1, -1, -1);
+			tmp = Result(-1, -1, -1, -1);
 			ab_block = -1;
-			alphabeta(1, -INF, INF, currBotColor);
+			alphabeta(1, -INF, INF, enemyColor);
 			if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
 			{
-				ans.blockForEnemy = ab_block;
+				ans.blockForEnemy = tmp.blockForEnemy;
 			}
 			else
 			{
@@ -1055,11 +1075,6 @@ int main()
 		cout << MAXDEP << endl;
 	#endif
 	}
-	
-	
-#ifdef MEKTPOY
-	cout << totalcp << " " << totalrc << " " << totalcal << endl;
-#endif
 	//block.set(finalX, finalY, finalO).place();
 	//calc2(block, currBotColor);
 	//block.set(finalX, finalY, finalO).place2();
