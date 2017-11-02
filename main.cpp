@@ -402,14 +402,14 @@ struct data{
 
 const double Height[21] = {0.0, 0.2, 0.4, 0.7, 1.1, 1.5, 1.9, 2.5, 3.1, 3.8, 4.7, 5.9, 7.0, 8.2, 9.5, 11.2, 13.5, 16.5, 20.0, 24.5, 30.0};
 
-double GetLandingHeight(int player) 
+int GetLandingHeight(int player) 
 {
 	return Height[maxHeight[player]];
 }
 
 int GetRowsRemoved(int player)
 {
-	return elimTotal[player] * 2;
+	return elimTotal[player];
 }
 
 int GetRowTransitions(int player) 
@@ -448,14 +448,17 @@ int GetColumnTransitions(int player)
 
 	for (int i = 1; i <= MAPWIDTH; i ++)
 	{
+		int bit;
 		for (int j = 1; j <= MAPHEIGHT; j ++)
 		{
-			if ((gridInfo[player][j] >> i & 1) != last_bit)
+			bit = (gridInfo[player][j] >> i & 1);
+			if (bit != last_bit)
 			{
 				++ ret;
 			}
-			last_bit = (gridInfo[player][j] >> i & 1);
+			last_bit = bit;
 		}
+		if (bit == 0) ++ ret;
 		last_bit = 1;
 	}
 	return ret;
@@ -473,7 +476,7 @@ int GetNumberOfHoles(int player)
 		ret += __builtin_popcount(row_holes);
 		previous_row = board[i];
 	}
-	ret *= 2;
+	ret *= 5;
 	return ret;
 }
 
@@ -767,7 +770,6 @@ double alphabeta (int dep, double alpha, double beta, int player)
 		{
 			return - 15000 + dep;
 		}
-		/*
 		for (int i = 0; i < v.size(); i ++)
 		{
 			copy(dep);
@@ -778,7 +780,7 @@ double alphabeta (int dep, double alpha, double beta, int player)
 			recover(dep);
 		}
 		sort(v.begin(), v.end());
-		*/
+		reverse(v.begin(), v.end());
 		int sz = (int)v.size();
 		for (int i = 0; i < sz; i ++)
 		{
