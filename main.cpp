@@ -50,7 +50,7 @@ int temp_elimCombo[110][2] = { 0 };
 int elimCombo[2] = { 0 };
  
 // 一次性消去行数对应分数
-const int elimBonus[] = { 0, 1, 2, 3, 4, 5};
+const int elimBonus[] = { 0, 1, 2, 4, 6, 8};
 double TIME_LIMIT;
  
 // 给对应玩家的各类块的数目总计
@@ -400,7 +400,7 @@ struct data{
 
 const double Height[21] = {0.0, 0.2, 0.4, 0.7, 1.1, 1.5, 1.9, 2.5, 3.1, 3.8, 4.7, 5.9, 7.0, 8.2, 9.5, 11.2, 13.5, 16.5, 20.0, 24.5, 30.0};
 
-int GetLandingHeight(int player) 
+double GetLandingHeight(int player) 
 {
   return Height[maxHeight[player]];
 }
@@ -1012,7 +1012,7 @@ int main()
 
 	if (maxHeight[0] < 19 && maxHeight[1] < 19, 1)
 	{
-		TIME_LIMIT = 0.475;
+		TIME_LIMIT = 0.49;
 		Block[0] = Tetris(nextTypeForColor[currBotColor], currBotColor);
 		for (MAXDEP = 2; MAXDEP <= 50; MAXDEP += 2)
 		{
@@ -1031,7 +1031,7 @@ int main()
 
 		int first_dep = MAXDEP;
 
-		TIME_LIMIT = 0.95;
+		TIME_LIMIT = 0.98;
 		Block[0] = Tetris(nextTypeForColor[enemyColor], enemyColor);
 		for (MAXDEP = 2; MAXDEP <= 50; MAXDEP += 2)
 		{
