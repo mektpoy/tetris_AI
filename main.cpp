@@ -589,7 +589,7 @@ inline void bfs(Tetris t, vector<data> &v)
 					vis[x][y][o] = 1; Q.push(data(x, y, o)); break;
 				}
 			}
-			gg:	break;
+			gg:	continue;
 		}
 	}
 
