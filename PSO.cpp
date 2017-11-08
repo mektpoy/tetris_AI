@@ -12,6 +12,8 @@ const double bup = 10.0;
 const double c1 = 2.0;
 const double c2 = 2.0;
 
+int G = 50, S = 30, pos = 0;
+
 struct Particle{
 	double d[6]; Particle(){}
 	Particle(double A, double B, double C, double D, double E, double F)
@@ -26,7 +28,7 @@ struct Particle{
 			c.d[i] = d[i] + b.d[i];
 		return c;
 	}
-}g, x[233], p[233], v[233];
+}g, x[233], p[233], v[233],q[233];
 
 inline double getrand(double lo, double up)
 {
@@ -40,21 +42,55 @@ inline void Init(Particle &k, double lo, double up)
 		k.d[i] = getrand(lo, up);
 }
 
-/*inline bool update(Particle A, Particle &B)
+inline bool update(Particle A, Particle &B)
 {
-	if (A > B)
+	int totalA = 0, totalB = 0, tmp;
+	freopen("redparameter.txt", "w", stdout);
+	for (int i = 0; i < 6; i++) printf("%.15lf\n", A.d[i]);
+	for (int i = 0; i < S; i++)
 	{
-		B = A; return true;
+		freopen("blueparameter.txt", "w", stdout);
+		for (int j = 0; j < 6; j++) printf("%.15lf\n", q[i].d[j]);
+		for (int j = 0; j < 7; j++)
+		{
+			freopen("firstblock.txt", "w", stdout);
+			cout << j << endl; system("checker");
+			freopen("result.txt", "r", stdin);
+			cin >> tmp; totalA += tmp;
+		}
 	}
-	return false;
-}*/
+
+	freopen("redparameter.txt", "w", stdout);
+	for (int i = 0; i < 6; i++) printf("%.15lf\n", B.d[i]);
+	for (int i = 0; i < S; i++)
+	{
+		freopen("blueparameter.txt", "w", stdout);
+		for (int j = 0; j < 6; j++) printf("%.15lf\n", q[i].d[j]);
+		for (int j = 0; j < 7; j++)
+		{
+			freopen("firstblock.txt", "w", stdout);
+			cout << j << endl; system("checker");
+			freopen("result.txt", "r", stdin);
+			cin >> tmp; totalA += tmp;
+		}
+	}
+
+	if (totalA > totalB)
+	{
+		q[pos++] = B; pos %= S;
+		B = A; return 1;
+	}
+	return 0;
+}
 
 int main()
 {
-	int G = 50, S = 30; double w0 = 0.9, wt = 0.4; srand(time(NULL));
+	double w0 = 0.9, wt = 0.4; srand(time(NULL));
 	g = Particle(-4.500158825082766, 3.4181268101392694, -3.2178882868487753
 		, -9.348695305445199, -7.899265427351652, -3.3855972247263626);
 	
+	for (int i = 0; i < S; i++) Init(q[i], blo, bup);
+
 	for (int i = 0; i < S; i++)
 	{
 		Init(x[i], blo, bup); p[i] = x[i];
@@ -77,5 +113,6 @@ int main()
 		}
 	}
 
+	freopen("thelastparameter.txt", "w", stdout);
 	for (int i = 0; i < 6; i++) printf("%.15lf\n",g.d[i]);
 }

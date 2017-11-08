@@ -359,7 +359,7 @@ namespace Util
 }
 
 int ab_block;
-
+double rp[6],bp[6];
 bool vis[MAPWIDTH + 3][MAPHEIGHT + 3][4];
 
 struct data{
@@ -459,71 +459,91 @@ int main()
 	int blockType,Firstblock,finalX,finalY,finalO;
 	int nextTypeForColor[2];
 
-	Tetris red, blue;
-	vector <data> v;
-
+	freopen("firstblock.txt", "r", stdin);
+	cin >> Firstblock; Tetris red, blue;
+	vector <data> v; v.clear();
+	fclose(stdin);
+	
+	freopen("redparameter.txt", "r", stdin);
+	for (int i = 0; i < 6; i++) cin >> rp[i];
+	fclose(stdin);
+	
+	freopen("blueparameter.txt", "r", stdin);
+	for (int i = 0; i < 6; i++) cin >> bp[i];
+	fclose(stdin);
+	
 	for (int turnID = 0; ; turnID++)
 	{
 		if (turnID == 0)
 		{
-			Firstblock = rand() % 7;
 			freopen("redinput.txt", "w", stdout);
+			for (int i = 0; i < 6; i++) printf("%.15lf\n", rp[i]);
 			printf("1\n%d %d\n", Firstblock, 0);
 			red = Tetris(Firstblock, 0);
 			typeCountForColor[0][Firstblock]++;
+			fclose(stdout);
+			
 			freopen("blueinput.txt", "w", stdout);
+			for (int i = 0; i < 6; i++) printf("%.15lf\n", bp[i]);
 			printf("1\n%d %d\n", Firstblock, 1);
 			blue = Tetris(Firstblock, 1);
 			typeCountForColor[1][Firstblock]++;
+			fclose(stdout);
 		}
 		else
 		{
 			freopen("redinput.txt", "w", stdout);
+			for (int i = 0; i < 6; i++) printf("%.15lf\n", rp[i]);
 			printf("%d\n%d %d\n", turnID + 1, Firstblock, 0);
 			for (int i = 0; i < turnID * 2; i++)
 				for (int j = 0; j < 4; j++)
 					printf("%d%c", redinput[i][j], j == 3 ? '\n' : ' ');
+			fclose(stdout);
+					
 			freopen("blueinput.txt", "w", stdout);
+			for (int i = 0; i < 6; i++) printf("%.15lf\n", bp[i]);
 			printf("%d\n%d %d\n", turnID + 1, Firstblock, 1);
 			for (int i = 0; i < turnID * 2; i++)
 				for (int j = 0; j < 4; j++)
 					printf("%d%c", blueinput[i][j], j == 3 ? '\n' : ' ');
+			fclose(stdout);
 		}
 
-		system("" < "redinput.txt" > "redoutput.txt");
-		system("" < "blueinput.txt" > "blueoutput.txt");
+		system("main < redinput.txt > redoutput.txt");
+		system("main < blueinput.txt > blueoutput.txt");
 		int a = turnID * 2, b = turnID * 2 + 1;
 
 		freopen("redoutput.txt", "r", stdin);
 		cin >> nextTypeForColor[1] >> finalX >> finalY >> finalO;
 		++typeCountForColor[1][nextTypeForColor[1]];
-		redinput[a][0] = nextTypeForColor[1];
+		fclose(stdin); redinput[a][0] = nextTypeForColor[1];
 		redinput[a][1] = finalX; redinput[a][2] = finalY; redinput[a][3] = finalO;
-		bool redflag = setblock(red, finalX, finalY, finalO, 1);
+		if (!red.set(finalX, finalY, finalO).isValid())
+		{
+			freopen("result.txt", "w", stdout);
+			printf("%d\n", 0); fclose(stdout); break;
+		}
+		red.set(finalX, finalY, finalO).place();
 
 		freopen("blueoutput.txt", "r", stdin);
 		cin >> nextTypeForColor[0] >> finalX >> finalY >> finalO;
 		++typeCountForColor[0][nextTypeForColor[0]];
-		blueinput[a][0] = nextTypeForColor[0];
+		blueinput[a][0] = nextTypeForColor[0]; fclose(stdin);
 		blueinput[a][1] = finalX; blueinput[a][2] = finalY; blueinput[a][3] = finalO;
-		bool blueflag = setblock(blue, finalX, finalY, finalO, 0);
-
-		if (!redflag || !blueflag)
+		if (!blue.set(finalX, finalY, finalO).isValid())
 		{
-			if (!redflag && !blueflag) puts("-1");
-			else if (!redflag) puts("1"); else puts("0");
-			break;
+			freopen("result.txt", "w", stdout);
+			printf("%d\n", 1); fclose(stdout); break;
 		}
-
-		red.set(finalX, finalY, finalO).place();
 		blue.set(finalX, finalY, finalO).place();
+		
 		Util::eliminate(0);
 		Util::eliminate(1);
 		int result = Util::transfer();
 		if (result != -1)
 		{
 			freopen("result.txt", "w", stdout);
-			printf("%d\n", result ^ 1); break;
+			printf("%d\n", result); fclose(stdout); break;
 		}
 
 		red = Tetris(nextTypeForColor[0], 0);
