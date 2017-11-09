@@ -45,6 +45,12 @@ int maxHeight[2] = { 0 };
 int temp_elimTotal[110][2] = { 0 }; 
 int elimTotal[2] = { 0 };
 
+int temp_deleteTotal[110][2] = { 0 };
+int deleteTotal[2] = { 0 };
+
+int temp_insertTotal[110][2] = { 0 };
+int insertTotal[2] = { 0 };
+
 // 连续几回合发生过消去了
 int temp_elimCombo[110][2] = { 0 }; 
 int elimCombo[2] = { 0 };
@@ -276,6 +282,8 @@ namespace Util
 			elimCombo[color] = 0;
 		maxHeight[color] -= count - hasBonus;
 		elimTotal[color] += elimBonus[count - hasBonus];
+		deleteTotal[color] += count;
+		insertTotal[color] += count + hasBonus;
 	}
  
 	// 转移双方消去的行，返回-1表示继续，否则返回输者
@@ -407,24 +415,12 @@ double GetLandingHeight(int player)
 
 int GetRowsRemoved(int player)
 {
-	return elimTotal[player];
-	/*
-	int ret = 0;
-	for (int i = 1; i <= MAPHEIGHT; i++)
-	{
-		int fullFlag = 1;
-		for (int j = 1; j <= MAPWIDTH; j++)
-		{
-			if (gridInfo[player][i][j] == 0)
-				fullFlag = 0;
-		}
-		if (fullFlag)
-		{
-			ret ++;
-		}
-	}
-	return ret;	
-	*/
+	return deleteTotal[player];
+}
+
+int GetRowsIncresed(int player)
+{
+	return insertTotal[player];
 }
 
 int GetRowTransitions(int player) 
@@ -539,6 +535,7 @@ double calc (int player)
 	double player_score = 
 		GetLandingHeight(player) * -4.500158825082766 +
 		GetRowsRemoved(player) * 3.4181268101392694 +
+		GetRowsIncresed(player) * 1.4181268101392694 +
 		GetRowTransitions(player) * -3.2178882868487753 +
 		GetColumnTransitions(player) * -9.348695305445199 +
 		GetNumberOfHoles(player) * -7.899265427351652 +
@@ -554,6 +551,8 @@ void copy (int depth)
 	memcpy(temp_elimCombo[depth], elimCombo, sizeof(elimCombo));
 	memcpy(temp_elimTotal[depth], elimTotal, sizeof(elimTotal));
 	memcpy(temp_gridInfo[depth], gridInfo, sizeof(gridInfo));
+	memcpy(temp_deleteTotal[depth], deleteTotal, sizeof(deleteTotal));
+	memcpy(temp_insertTotal[depth], insertTotal, sizeof(insertTotal));
 }
 
 void recover (int depth)
@@ -562,6 +561,8 @@ void recover (int depth)
 	memcpy(elimCombo, temp_elimCombo[depth], sizeof(elimCombo));
 	memcpy(elimTotal, temp_elimTotal[depth], sizeof(elimTotal));
 	memcpy(gridInfo, temp_gridInfo[depth], sizeof(gridInfo));
+	memcpy(deleteTotal, temp_deleteTotal[depth], sizeof(deleteTotal));
+	memcpy(insertTotal, temp_insertTotal[depth], sizeof(insertTotal));
 }
 
 inline void bfs(Tetris t, vector<data> &v)
@@ -899,6 +900,8 @@ int main()
 		Util::transfer();
 	}
 
+	memset(insertTotal, 0, sizeof(insertTotal));
+	memset(deleteTotal, 0, sizeof(deleteTotal));
 	// 做出决策（你只需修改以下部分）
  
 	// 遇事不决先输出（平台上编译不会输出）
