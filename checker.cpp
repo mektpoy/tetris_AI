@@ -20,6 +20,8 @@ using namespace std;
 #define MAPWIDTH 10
 #define MAPHEIGHT 20
  
+const int N = 7;
+ 
 // 我所在队伍的颜色（0为红，1为蓝，仅表示队伍，不分先后）
 int currBotColor;
 int enemyColor;
@@ -465,11 +467,11 @@ int main()
 	fclose(stdin);
 	
 	freopen("redparameter.txt", "r", stdin);
-	for (int i = 0; i < 6; i++) cin >> rp[i];
+	for (int i = 0; i < N; i++) cin >> rp[i];
 	fclose(stdin);
 	
 	freopen("blueparameter.txt", "r", stdin);
-	for (int i = 0; i < 6; i++) cin >> bp[i];
+	for (int i = 0; i < N; i++) cin >> bp[i];
 	fclose(stdin);
 	
 	for (int turnID = 0; ; turnID++)
@@ -477,14 +479,14 @@ int main()
 		if (turnID == 0)
 		{
 			freopen("redinput.txt", "w", stdout);
-			for (int i = 0; i < 6; i++) printf("%.15lf\n", rp[i]);
+			for (int i = 0; i < N; i++) printf("%.15lf\n", rp[i]);
 			printf("1\n%d %d\n", Firstblock, 0);
 			red = Tetris(Firstblock, 0);
 			typeCountForColor[0][Firstblock]++;
 			fclose(stdout);
 			
 			freopen("blueinput.txt", "w", stdout);
-			for (int i = 0; i < 6; i++) printf("%.15lf\n", bp[i]);
+			for (int i = 0; i < N; i++) printf("%.15lf\n", bp[i]);
 			printf("1\n%d %d\n", Firstblock, 1);
 			blue = Tetris(Firstblock, 1);
 			typeCountForColor[1][Firstblock]++;
@@ -493,7 +495,7 @@ int main()
 		else
 		{
 			freopen("redinput.txt", "w", stdout);
-			for (int i = 0; i < 6; i++) printf("%.15lf\n", rp[i]);
+			for (int i = 0; i < N; i++) printf("%.15lf\n", rp[i]);
 			printf("%d\n%d %d\n", turnID + 1, Firstblock, 0);
 			for (int i = 0; i < turnID * 2; i++)
 				for (int j = 0; j < 4; j++)
@@ -501,7 +503,7 @@ int main()
 			fclose(stdout);
 					
 			freopen("blueinput.txt", "w", stdout);
-			for (int i = 0; i < 6; i++) printf("%.15lf\n", bp[i]);
+			for (int i = 0; i < N; i++) printf("%.15lf\n", bp[i]);
 			printf("%d\n%d %d\n", turnID + 1, Firstblock, 1);
 			for (int i = 0; i < turnID * 2; i++)
 				for (int j = 0; j < 4; j++)
@@ -550,6 +552,17 @@ int main()
 		blue = Tetris(nextTypeForColor[1], 1);
 		for (int i = 0; i < 4; i++)
 			redinput[b][i] = blueinput[a][i], blueinput[b][i] = redinput[a][i];
+			
+		vector <data> v; v.clear(); bfs(red, v);
+		bool redflag = (v.size() > 0 ? 1 : 0);
+		v.clear(); bfs(blue, v);
+		bool blueflag = (v.size() > 0 ? 1 : 0);
+		if (!redflag && !blueflag) result = 0;
+		else if (!redflag) result = 0;
+		else if (!blueflag) result = 1;
+		if (result == -1) continue;
+		freopen("result.txt", "w", stdout);
+		printf("%d\n", result); fclose(stdout); break;
 	}
 	return 0;
 }
