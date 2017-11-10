@@ -1,10 +1,10 @@
 /**
- * Tetris2 样例程序
+ * Tetris2 ????
  * https://wiki.botzone.org/index.php?title=Tetris2
  */
-// 注意：x的范围是1~MAPWIDTH，y的范围是1~MAPHEIGHT
-// 数组是先行（y）后列（c）
-// 坐标系：原点在左下角
+// ??:x????1~MAPWIDTH,y????1~MAPHEIGHT
+// ?????(y)??(c)
+// ???:??????
  
 #include <iostream>
 #include <string>
@@ -22,42 +22,42 @@ using namespace std;
  
 const int N = 7;
  
-// 我所在队伍的颜色（0为红，1为蓝，仅表示队伍，不分先后）
+// ????????(0??,1??,?????,????)
 int currBotColor;
 int enemyColor;
 
 double tim;
 int MAXDEP, turnID;
  
-// 先y后x，记录地图状态，0为空，1为以前放置，2为刚刚放置，负数为越界
-// （2用于在清行后将最后一步撤销再送给对方）
+// ?y?x,??????,0??,1?????,2?????,?????
+// (2??????????????????)
 int tmpInfo[2][MAPHEIGHT + 2] = { 0 };
 int temp_gridInfo[110][2][MAPHEIGHT + 2] = { 0 };
 int gridInfo[2][MAPHEIGHT + 2] = { 0 };
  
-// 代表分别向对方转移的行
+// ???????????
 int trans[2][6] = { 0 };
  
-// 转移行数
+// ????
 int transCount[2] = { 0 };
  
-// 运行eliminate后的当前高度
+// ??eliminate??????
 int temp_maxHeight[110][2] = { 0 };
 int maxHeight[2] = { 0 };
 
-// 总消去行数的分数之和
+// ??????????
 int temp_elimTotal[110][2] = { 0 }; 
 int elimTotal[2] = { 0 };
 
-// 连续几回合发生过消去了
+// ???????????
 int temp_elimCombo[110][2] = { 0 }; 
 int elimCombo[2] = { 0 };
  
-// 一次性消去行数对应分数
+// ???????????
 const int elimBonus[] = { 0, 1, 2, 3, 4, 5};
 double TIME_LIMIT;
  
-// 给对应玩家的各类块的数目总计
+// ??????????????
 int typeCountForColor[2][7] = { 0 };
  
 int blockShape[7][4][8] = {
@@ -68,7 +68,7 @@ int blockShape[7][4][8] = {
 	{ { 0,0,-1,0,0,1,1,0 },{ 0,0,0,-1,-1,0,0,1 },{ 0,0,1,0,0,-1,-1,0 },{ 0,0,0,1,1,0,0,-1 } },
 	{ { 0,0,0,-1,0,1,0,2 },{ 0,0,1,0,-1,0,-2,0 },{ 0,0,0,1,0,-1,0,-2 },{ 0,0,-1,0,1,0,2,0 } },
 	{ { 0,0,0,1,-1,0,-1,1 },{ 0,0,-1,0,0,-1,-1,-1 },{ 0,0,0,-1,1,-0,1,-1 },{ 0,0,1,0,0,1,1,1 } }
-}; // 7种形状(长L| 短L| 反z| 正z| T| 直一| 田格)，4种朝向(上左下右)，8:每相邻的两个分别为x，y
+}; // 7???(?L| ?L| ?z| ?z| T| ??| ??),4???(????),8:?????????x,y
 
 const int rotateBlank[7][4][10] = {
 	{ { 1,1,0,0 },{ -1,1,0,0 },{ -1,-1,0,0 },{ 1,-1,0,0 } },
@@ -78,7 +78,7 @@ const int rotateBlank[7][4][10] = {
 	{ { -1,-1,-1,1,1,1,0,0 },{ -1,-1,-1,1,1,-1,0,0 },{ -1,-1,1,1,1,-1,0,0 },{ -1,1,1,1,1,-1,0,0 } },
 	{ { 1,-1,-1,1,-2,1,-1,2,-2,2 } ,{ 1,1,-1,-1,-2,-1,-1,-2,-2,-2 } ,{ -1,1,1,-1,2,-1,1,-2,2,-2 } ,{ -1,-1,1,1,2,1,1,2,2,2 } },
 	{ { 0,0 },{ 0,0 } ,{ 0,0 } ,{ 0,0 } }
-}; // 旋转的时候需要为空的块相对于旋转中心的坐标
+}; // ?????????????????????
  
 const int dx[3] = {-1 ,1, 0};
 const int dy[3] = {0, 0, -1};
@@ -89,11 +89,11 @@ void PRINT ();
 class Tetris
 {
 public:
-	int blockType;   // 标记方块类型的序号 0~6
-	int blockX;            // 旋转中心的x轴坐标
-	int blockY;            // 旋转中心的y轴坐标
-	int orientation;       // 标记方块的朝向 0~3
-	int(*shape)[8]; // 当前类型方块的形状定义
+	int blockType;   // ????????? 0~6
+	int blockX;            // ?????x???
+	int blockY;            // ?????y???
+	int orientation;       // ??????? 0~3
+	int(*shape)[8]; // ???????????
  
 	int color;
 
@@ -110,7 +110,7 @@ public:
 		return *this;
 	}
  
-	// 判断当前位置是否合法
+	// ??????????
 	inline bool isValid(int x = -1, int y = -1, int o = -1)
 	{
 		x = x == -1 ? blockX : x;
@@ -132,7 +132,7 @@ public:
 		return true;
 	}
  
-	// 判断是否落地
+	// ??????
 	inline bool onGround()
 	{
 		if (isValid(-1, blockY - 1))
@@ -140,7 +140,7 @@ public:
 		return true;
 	}
  
-	// 将方块放置在场地上
+	// ?????????
 	inline bool place()
 	{
 		if (!onGround())
@@ -156,7 +156,7 @@ public:
 		return true;
 	}
  
-	// 检查能否逆时针旋转自己到o
+	// ????????????o
 	inline bool rotation(int o)
 	{
 		if (o < 0 || o > 3)
@@ -175,7 +175,7 @@ public:
 			if (fromO == o)
 				break;
 				
-			// 检查旋转碰撞
+			// ??????
 			for (i = 0; i < 5; i++) {
 				blankX = blockX + rotateBlank[blockType][fromO][2 * i];
 				blankY = blockY + rotateBlank[blockType][fromO][2 * i + 1];
@@ -191,7 +191,7 @@ public:
 	}
 }Block[100];
  
-// 围一圈护城河
+// ??????
 void init()
 {
 	int i;
@@ -209,7 +209,7 @@ void init()
 namespace Util
 {
  
-	// 检查能否从场地顶端直接落到当前位置
+	// ?????????????????
 	/*
 	inline bool checkDirectDropTo(int color, int blockType, int x, int y, int o)
 	{
@@ -227,7 +227,7 @@ namespace Util
 	}
  	*/
 
-	// 消去行
+	// ???
 	void eliminate(int color)
 	{
 		int &count = transCount[color] = 0;
@@ -245,7 +245,7 @@ namespace Util
 			{
 				if (firstFull && ++elimCombo[color] >= 3)
 				{
-					// 奖励行
+					// ???
 					trans[color][count] = gridInfo[color][i];
 					count++;
 					hasBonus = 1;
@@ -276,7 +276,7 @@ namespace Util
 		elimTotal[color] += elimBonus[count];
 	}
  
-	// 转移双方消去的行，返回-1表示继续，否则返回输者
+	// ????????,??-1????,??????
 	int transfer()
 	{
 		int color1 = 0, color2 = 1;
@@ -302,7 +302,7 @@ namespace Util
 		else
 		{
 			int h1, h2;
-			maxHeight[color1] = h1 = maxHeight[color1] + transCount[color2];//从color1处移动count1去color2
+			maxHeight[color1] = h1 = maxHeight[color1] + transCount[color2];//?color1???count1?color2
 			maxHeight[color2] = h2 = maxHeight[color2] + transCount[color1];
  
 			if (h1 > MAPHEIGHT) return color1;
@@ -325,7 +325,7 @@ namespace Util
 		}
 	}
  
-	// 打印场地用于调试
+	// ????????
 	inline void printField()
 	{
 #ifndef _BOTZONE_ONLINE
@@ -336,7 +336,7 @@ namespace Util
 			"[]",
 			"##"
 		};
-		cout << "~~：墙，[]：块，##：新块" << endl;
+		cout << "~~:?,[]:?,##:??" << endl;
 		for (int y = MAPHEIGHT; y >= 1; y--)
 		{
 			cout << i2s[0];
@@ -452,7 +452,6 @@ inline bool setblock(Tetris t,int finalX, int finalY,int finalO,int enemy)
 
 int main()
 {
-	// 加速输入
  	tim = clock();
 	istream::sync_with_stdio(false);
 	srand(time(NULL));
@@ -461,91 +460,114 @@ int main()
 	int blockType,Firstblock,finalX,finalY,finalO;
 	int nextTypeForColor[2];
 
-	freopen("firstblock.txt", "r", stdin);
-	cin >> Firstblock; Tetris red, blue;
+	auto first = fopen("firstblock.txt", "r");
+	fscanf(first, "%d", &Firstblock);
+	Tetris red, blue;
 	vector <data> v; v.clear();
-	fclose(stdin);
+	fclose(first);
 	
-	freopen("redparameter.txt", "r", stdin);
-	for (int i = 0; i < N; i++) cin >> rp[i];
-	fclose(stdin);
+	auto redp = fopen("redparameter.txt", "r");
+	for (int i = 0; i < N; i++) 
+		fscanf(redp, "%lf", &rp[i]);
+	fclose(redp);
 	
-	freopen("blueparameter.txt", "r", stdin);
-	for (int i = 0; i < N; i++) cin >> bp[i];
-	fclose(stdin);
+	auto bluep = fopen("blueparameter.txt", "r");
+	for (int i = 0; i < N; i++)
+		fscanf(redp, "%lf", &bp[i]);
+	fclose(bluep);
 	
 	for (int turnID = 0; ; turnID++)
 	{
 		if (turnID == 0)
 		{
-			freopen("redinput.txt", "w", stdout);
-			for (int i = 0; i < N; i++) printf("%.15lf\n", rp[i]);
-			printf("1\n%d %d\n", Firstblock, 0);
+			auto redin = fopen("redinput.txt", "w");
+			for (int i = 0; i < N; i++) 
+				fprintf(redin, "%.15f\n", rp[i]);
+			fprintf(redin, "1\n%d %d\n", Firstblock, 0);
 			red = Tetris(Firstblock, 0);
 			typeCountForColor[0][Firstblock]++;
-			fclose(stdout);
+			fclose(redin);
 			
-			freopen("blueinput.txt", "w", stdout);
-			for (int i = 0; i < N; i++) printf("%.15lf\n", bp[i]);
-			printf("1\n%d %d\n", Firstblock, 1);
+			auto bluein = fopen("blueinput.txt", "w");
+			for (int i = 0; i < N; i++) 
+				fprintf(bluein, "%.15f\n", bp[i]);
+			fprintf(bluein, "1\n%d %d\n", Firstblock, 1);
 			blue = Tetris(Firstblock, 1);
 			typeCountForColor[1][Firstblock]++;
-			fclose(stdout);
+			fclose(bluein);
 		}
 		else
 		{
-			freopen("redinput.txt", "w", stdout);
-			for (int i = 0; i < N; i++) printf("%.15lf\n", rp[i]);
-			printf("%d\n%d %d\n", turnID + 1, Firstblock, 0);
+			auto redin = fopen("redinput.txt", "w");
+			for (int i = 0; i < N; i++)
+				fprintf(redin, "%.15f\n", rp[i]);
+			fprintf(redin, "%d\n%d %d\n", turnID + 1, Firstblock, 0);
 			for (int i = 0; i < turnID * 2; i++)
 				for (int j = 0; j < 4; j++)
-					printf("%d%c", redinput[i][j], j == 3 ? '\n' : ' ');
-			fclose(stdout);
+					fprintf(redin, "%d%c", redinput[i][j], j == 3 ? '\n' : ' ');
+			fclose(redin);
 					
-			freopen("blueinput.txt", "w", stdout);
-			for (int i = 0; i < N; i++) printf("%.15lf\n", bp[i]);
-			printf("%d\n%d %d\n", turnID + 1, Firstblock, 1);
+			auto bluein = fopen("blueinput.txt", "w");
+			for (int i = 0; i < N; i++)
+				fprintf(bluein, "%.15f\n", bp[i]);
+			fprintf(bluein, "%d\n%d %d\n", turnID + 1, Firstblock, 1);
 			for (int i = 0; i < turnID * 2; i++)
 				for (int j = 0; j < 4; j++)
-					printf("%d%c", blueinput[i][j], j == 3 ? '\n' : ' ');
-			fclose(stdout);
+					fprintf(bluein, "%d%c", blueinput[i][j], j == 3 ? '\n' : ' ');
+			fclose(bluein);
 		}
 
 		system("main < redinput.txt > redoutput.txt");
 		system("main < blueinput.txt > blueoutput.txt");
 		int a = turnID * 2, b = turnID * 2 + 1;
 
-		freopen("redoutput.txt", "r", stdin);
-		cin >> nextTypeForColor[1] >> finalX >> finalY >> finalO;
+		int redLost = 0, blueLost = 0;
+
+		auto redout = fopen("redoutput.txt", "r");
+		fscanf(redout, "%d%d%d%d", &nextTypeForColor[1], &finalX, &finalY, &finalO);
 		++typeCountForColor[1][nextTypeForColor[1]];
-		fclose(stdin); redinput[a][0] = nextTypeForColor[1];
+		fclose(redout);
+		redinput[a][0] = nextTypeForColor[1];
 		redinput[a][1] = finalX; redinput[a][2] = finalY; redinput[a][3] = finalO;
 		if (!red.set(finalX, finalY, finalO).isValid())
 		{
-			freopen("result.txt", "w", stdout);
-			printf("%d\n", 0); fclose(stdout); break;
+			redLost = 1;
 		}
-		red.set(finalX, finalY, finalO).place();
+		if (!redLost) red.set(finalX, finalY, finalO).place();
 
-		freopen("blueoutput.txt", "r", stdin);
-		cin >> nextTypeForColor[0] >> finalX >> finalY >> finalO;
+		auto blueout = fopen("blueoutput.txt", "r");
+		fscanf(blueout, "%d%d%d%d", &nextTypeForColor[0], &finalX, &finalY, &finalO);
 		++typeCountForColor[0][nextTypeForColor[0]];
+		fclose(blueout);
 		blueinput[a][0] = nextTypeForColor[0]; fclose(stdin);
 		blueinput[a][1] = finalX; blueinput[a][2] = finalY; blueinput[a][3] = finalO;
 		if (!blue.set(finalX, finalY, finalO).isValid())
 		{
-			freopen("result.txt", "w", stdout);
-			printf("%d\n", 1); fclose(stdout); break;
+			blueLost = 1;
 		}
-		blue.set(finalX, finalY, finalO).place();
 		
+		if (redLost || blueLost)
+		{
+			auto result = fopen("result.txt", "w");
+			if (redLost ^ blueLost)
+			{
+				fprintf(result, "%d\n", blueLost);
+			}
+			else
+			{
+				fprintf(result, "%d\n", 2);
+			}
+			fclose(result); break;
+		}
+
+		if (!blueLost) blue.set(finalX, finalY, finalO).place();
 		Util::eliminate(0);
 		Util::eliminate(1);
 		int result = Util::transfer();
 		if (result != -1)
 		{
-			freopen("result.txt", "w", stdout);
-			printf("%d\n", result); fclose(stdout); break;
+			auto Result = fopen("result.txt", "w");
+			fprintf(Result, "%d\n", result); fclose(Result); break;
 		}
 
 		red = Tetris(nextTypeForColor[0], 0);
@@ -557,12 +579,13 @@ int main()
 		bool redflag = (v.size() > 0 ? 1 : 0);
 		v.clear(); bfs(blue, v);
 		bool blueflag = (v.size() > 0 ? 1 : 0);
-		if (!redflag && !blueflag) result = 0;
+		if (!redflag && !blueflag) result = 2;
 		else if (!redflag) result = 0;
 		else if (!blueflag) result = 1;
 		if (result == -1) continue;
-		freopen("result.txt", "w", stdout);
-		printf("%d\n", result); fclose(stdout); break;
+		auto Result = fopen("result.txt", "w");
+		fprintf(Result, "%d\n", result); fclose(Result); break;
 	}
 	return 0;
 }
+
