@@ -533,13 +533,13 @@ Tetris Block[100];
 double calc (int player)
 {
 	double player_score = 
-		GetLandingHeight(player) * -4.500158825082766 +
+		GetLandingHeight(player) * -5.500158825082766 +
 		GetRowsRemoved(player) * 3.4181268101392694 +
-		GetRowsIncresed(player) * 1.4181268101392694 +
+		GetRowsIncresed(player) * 1.5181268101392694 +
 		GetRowTransitions(player) * -3.2178882868487753 +
 		GetColumnTransitions(player) * -9.348695305445199 +
-		GetNumberOfHoles(player) * -7.899265427351652 +
-		GetWellSums(player) * -3.3855972247263626;
+		GetNumberOfHoles(player) * -9.899265427351652 +
+		GetWellSums(player) * -4.3855972247263626;
 	return player_score;
 };
 
