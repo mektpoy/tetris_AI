@@ -22,15 +22,15 @@ using namespace std;
 // 我所在队伍的颜色（0为红，1为蓝，仅表示队伍，不分先后）
 int currBotColor;
 int enemyColor;
-
+      
 double 
-	landingHeightVal 		= -4.3285622730,
-	rowsRemovedVal 			= 2.1271401105,
-	rowsBonusVal 			= 5.6128116703,
-	rowTransitionsVal 		= -3.7381206702,
-	columnTransitionsVal 	= -9.2883083590,
-	numberOfHolesVal 		= -7.5474105045,
-	wellSumsVal 			= -4.8047120579;
+	landingHeightVal 		= -4.552810200934285,
+	rowsRemovedVal 			= 7.802667418641120,
+	rowsBonusVal 			= 15.361816710467112,
+	rowTransitionsVal 		= -4.186484973933691,
+	columnTransitionsVal 	= -11.179071273660625,
+	numberOfHolesVal 		= -14.032872493708261,
+	wellSumsVal 			= -6.059359794490395;
 
 double tim;
 int MAXDEP;
@@ -793,23 +793,23 @@ void PRINT ()
 
 int main()
 {
-	freopen("redinput.txt", "r", stdin);
-#ifndef _BOTZONE_ONLINE
-	cin >> landingHeightVal >> rowsRemovedVal >> rowsBonusVal >> rowTransitionsVal >> columnTransitionsVal >> numberOfHolesVal >> wellSumsVal;
-#endif
 	// 加速输入
  	tim = clock();
 	istream::sync_with_stdio(false);
 	srand(time(NULL));
 	init();
 
+#ifndef _BOTZONE_ONLINE
+	cin >> landingHeightVal >> rowsRemovedVal >> rowsBonusVal >> rowTransitionsVal >> columnTransitionsVal >> numberOfHolesVal >> wellSumsVal;
+#endif
+
 	int turnID, blockType;
 	int nextTypeForColor[2];
-	scanf("%d", &turnID);
+	cin >> turnID;
  
 	// 先读入第一回合，得到自己的颜色
 	// 双方的第一块肯定是一样的
-	scanf("%d%d", &blockType, &currBotColor);
+	cin >> blockType >> currBotColor;
 	enemyColor = 1 - currBotColor;
 	nextTypeForColor[0] = blockType;
 	nextTypeForColor[1] = blockType;
@@ -828,7 +828,7 @@ int main()
 		// 先读自己的输出，也就是自己的行为
 		// 自己的输出是自己的最后一步
 		// 然后模拟最后一步放置块
-		scanf("%d%d%d%d", &blockType, &x, &y, &o);
+		cin >> blockType >> x >> y >> o;
  
 		// 我当时把上一块落到了 x y o！
 		Tetris myBlock(currTypeForColor[currBotColor], currBotColor);
@@ -841,7 +841,7 @@ int main()
 		// 然后读自己的输入，也就是对方的行为
 		// 裁判给自己的输入是对方的最后一步
 		
-		scanf("%d%d%d%d", &blockType, &x, &y, &o);
+		cin >> blockType >> x >> y >> o;
  
 		// 对方当时把上一块落到了 x y o！
 		Tetris enemyBlock(currTypeForColor[enemyColor], enemyColor);

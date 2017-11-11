@@ -8,13 +8,14 @@
 using namespace std;
 
 const int N = 7;
-const double blo[7] = {-10, 0, 0, -10, -10, -10, -10};
-const double bup[7] = {0, 10, 10, 0, 0, 0, 0};
+const double blo[7] = {-6, 3, 10, -7, -10, -10, -7};
+const double bup[7] = {-1, 8, 15, -2, -5, -5, -2};
 const double c1 = 2.0;
 const double c2 = 2.0;
-const double K = 38.0;
-
-int G = 20, S = 10, R = 10;
+const double K = 18.0;
+const int G = 60;
+const int S = 20;
+const int R = 5;
 
 double cg, cp[233];
 
@@ -89,16 +90,16 @@ inline double battle(Particle k, int id)
 
 void randparameter()
 {
-	q[0] = Particle(-4.5, 3.4, 1.5, -3.2, -9.3, -7.8, -3.3);
-	q[1] = Particle(-5.5, 3.4, 1.5, -3.2, -9.3, -9.8, -4.4);
-	q[2] = Particle(-5.7, 1.7, 3.5, -3.2, -8.3, -9.5, -4.4);
-	q[3] = Particle(-5.2, 1.3, 3.5, -3.4, -9.2, -9.6, -5.8);
-	q[1] = Particle(-5.5, 1.4, 3.5, -3.2, -9.3, -9.8, -4.4);
+	q[0] = Particle(-4.5, 3.4, 1.4, -3.2, -9.3, -7.9, -3.4);
+	q[1] = Particle(-7.5, 0.0, 7.5, -3.9, -10.0, -10.0, -7.0);
+	q[2] = Particle(-3.3, 4.3, 11.8, -3.3, -8.8, -6.5, -4.0);
+	q[3] = Particle(-2.7, 7.2, 14.9, -4.4, -5.5, -8.2, -2.2);
+	q[4] = Particle(-3.2, 4.9, 13.9, -3.8, -6.0, -8.2, -3.9);
 	q[5] = Particle(-4.7, 1.2, 3.8, -3.6, -8.5, -9.1, -5.7);
 	q[6] = Particle(-5.0, 1.2, 3.8, -4.0, -9.4, -8.8, -5.4);
 	q[7] = Particle(-5.0, 1.3, 3.4, -3.8, -8.8, -8.7, -5.0);
-	q[8] = Particle(-4.3, 2.1, 5.6, -3.7, -9.3, -7.5, -4.8);
-	q[9] = Particle(-2, 4, 5, -4, -6, -5, -3);
+	q[8] = Particle(-7.0, 0.0, 5.6, -3.3, -10.0, -10.0, -6.6);
+	q[9] = Particle(-3.7, 0.0, 2.3, -3.3, -5.1, -7.2, -2.0);
 	q[10] = Particle(-5.6, 3, 4.4, -1.5, -7.2, -4.5, -6.8);
 	q[11] = Particle(-5.6, 2, 4.4, -1.5, -7.2, -4.5, -3.0);
 	q[12] = Particle(-5.6, 1, 4.4, -1, -4, -7, -5);
@@ -121,7 +122,7 @@ void randparameter()
 	q[29] = Particle(-9, 4, 3.655, -5, -8, -9, -3);
 }
 
-inline void update(Particle A,int ti)
+inline void update(Particle A, double ti)
 {
 	auto bestpa = fopen("bestparameter.txt", "w");
 	g = A; cg = ti; best.push_back(g); win.push_back(cg);
@@ -134,7 +135,7 @@ inline void update(Particle A,int ti)
 	fclose(bestpa);
 }
 
-inline void Print(Particle A,int ti)
+inline void Print(Particle A, double ti)
 {
 	auto bestpa = fopen("bestparameter.txt", "w");
 	best.push_back(A); win.push_back(ti);
@@ -142,9 +143,20 @@ inline void Print(Particle A,int ti)
 	{
 		for (int j = 0; j < N; j++)
 			fprintf(bestpa, "%.15f ", best[i].d[j]);
-		fprintf(bestpa, "%d\n", win[i]);
+		fprintf(bestpa, "%.1f\n", win[i]);
 	}
 	fclose(bestpa);
+}
+
+inline void Print_p()
+{
+	auto part = fopen("partialparameter.txt", "w");
+	for (int i = 1; i <= S; i++)
+	{
+		for (int j = 0; j < N; j++) fprintf(part, "%.15f ", p[i].d[j]);
+		fprintf(part, "%.1f\n", cp[i]);
+	}
+	fclose(part);
 }
 
 int main()
@@ -163,7 +175,6 @@ int main()
 	cg = battle(g, 0);
 	update(g, cg);
 	
-
 	for (int i = 0; i < S; i++)
 	{
 		for (int j = 0; j < N; j++)
@@ -173,9 +184,14 @@ int main()
 		if (cp[i] > cg) update(p[i], cp[i]);
 		else if (cp[i] >= K) Print(p[i], cp[i]);
 	}
-
+	
+	Print_p();
+	
 	for (int total = 0; total < G; total++)
 	{
+		auto rod = fopen("Round.txt", "w");
+		fprintf(rod, "%d", total);
+		fclose(rod);
 		double w = (w0 - wt) * (G - total) / G + wt;
 		for (int i = 0; i < S; i++)
 		{
@@ -185,11 +201,10 @@ int main()
 				v[i].d[j] = w * v[i].d[j] + c1 * A * (p[i].d[j] - x[i].d[j]) + c2 * B * (g.d[j] - x[i].d[j]);
 			}
 			x[i] = x[i] + v[i];
-			for (int j = 0; j < N; j++) x[i].d[j] = max(x[i].d[j], blo[j]), x[i].d[j] = min(x[i].d[j], bup[j]);
 			double now = battle(x[i], i);
 			if (now > cp[i])
 			{
-				cp[i] = now; p[i] = x[i];
+				cp[i] = now; p[i] = x[i]; Print_p();
 				if (cp[i] > cg) update(p[i], cp[i]);
 				else if (cp[i] >= K) Print(p[i], cp[i]);
 			}
