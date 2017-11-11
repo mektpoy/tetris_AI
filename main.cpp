@@ -23,6 +23,15 @@ using namespace std;
 int currBotColor;
 int enemyColor;
 
+double 
+	landingHeightVal 		= -4.3285622730,
+	rowsRemovedVal 			= 2.1271401105,
+	rowsBonusVal 			= 5.6128116703,
+	rowTransitionsVal 		= -3.7381206702,
+	columnTransitionsVal 	= -9.2883083590,
+	numberOfHolesVal 		= -7.5474105045,
+	wellSumsVal 			= -4.8047120579;
+
 double tim;
 int MAXDEP;
  
@@ -48,8 +57,8 @@ int elimTotal[2] = { 0 };
 int temp_deleteTotal[110][2] = { 0 };
 int deleteTotal[2] = { 0 };
 
-int temp_insertTotal[110][2] = { 0 };
-int insertTotal[2] = { 0 };
+int temp_bonusTotal[110][2] = { 0 };
+int bonusTotal[2] = { 0 };
 
 // 连续几回合发生过消去了
 int temp_elimCombo[110][2] = { 0 }; 
@@ -58,8 +67,6 @@ int elimCombo[2] = { 0 };
 // 一次性消去行数对应分数
 const int elimBonus[] = { 0, 1, 2, 3, 4};
 double TIME_LIMIT;
- 
-double A, B, C, D, E, F, G;
  
 // 给对应玩家的各类块的数目总计
 int typeCountForColor[2][7] = { 0 };
@@ -86,7 +93,6 @@ const int rotateBlank[7][4][10] = {
  
 const int dx[3] = {-1 ,1, 0};
 const int dy[3] = {0, 0, -1};
-int dep_pos[2] = {1, 3};
 
 void PRINT ();
 
@@ -285,7 +291,7 @@ namespace Util
 		maxHeight[color] -= count - hasBonus;
 		elimTotal[color] += elimBonus[count - hasBonus];
 		deleteTotal[color] += count;
-		insertTotal[color] += count + hasBonus;
+		bonusTotal[color] += hasBonus;
 	}
  
 	// 转移双方消去的行，返回-1表示继续，否则返回输者
@@ -361,7 +367,24 @@ namespace Util
 	// 打印场地用于调试
 	inline void printField()
 	{
-		
+#ifndef _BOTZONE_ONLINE
+		// static const char *i2s[] = {
+		// 	"~~",
+		// 	"~~",
+		// 	"  ",
+		// 	"[]",
+		// 	"##"
+		// };
+		// cout << "~~：墙，[]：块，##：新块" << endl;
+		// for (int y = MAPHEIGHT + 1; y >= 0; y--)
+		// {
+		// 	for (int x = 0; x <= MAPWIDTH + 1; x++)
+		// 		cout << i2s[gridInfo[0][y][x] + 2];
+		// 	for (int x = 0; x <= MAPWIDTH + 1; x++)
+		// 		cout << i2s[gridInfo[1][y][x] + 2];
+		// 	cout << endl;
+		// }
+#endif
 	}
 }
 
@@ -403,9 +426,9 @@ int GetRowsRemoved(int player)
 	return deleteTotal[player];
 }
 
-int GetRowsIncresed(int player)
+int GetRowsBonus(int player)
 {
-	return insertTotal[player];
+	return bonusTotal[player];
 }
 
 int GetRowTransitions(int player) 
@@ -518,13 +541,13 @@ Tetris Block[100];
 double calc (int player)
 {
 	double player_score = 
-		GetLandingHeight(player) * A +
-		GetRowsRemoved(player) * B +
-		GetRowsIncresed(player) * C +
-		GetRowTransitions(player) * D +
-		GetColumnTransitions(player) * E +
-		GetNumberOfHoles(player) * F +
-		GetWellSums(player) * G;
+		GetLandingHeight(player) 		* landingHeightVal 		+
+		GetRowsRemoved(player) 			* rowsRemovedVal 		+
+		GetRowsBonus(player) 			* rowsBonusVal 			+
+		GetRowTransitions(player) 		* rowTransitionsVal 	+
+		GetColumnTransitions(player) 	* columnTransitionsVal 	+
+		GetNumberOfHoles(player) 		* numberOfHolesVal 		+
+		GetWellSums(player) 			* wellSumsVal			;
 	return player_score;
 };
 
@@ -532,22 +555,22 @@ const double INF = 1e30;
 
 void copy (int depth)
 {
-	memcpy(temp_maxHeight[depth], maxHeight, sizeof(maxHeight));
-	memcpy(temp_elimCombo[depth], elimCombo, sizeof(elimCombo));
-	memcpy(temp_elimTotal[depth], elimTotal, sizeof(elimTotal));
-	memcpy(temp_gridInfo[depth], gridInfo, sizeof(gridInfo));
-	memcpy(temp_deleteTotal[depth], deleteTotal, sizeof(deleteTotal));
-	memcpy(temp_insertTotal[depth], insertTotal, sizeof(insertTotal));
+	memcpy(temp_maxHeight[depth],	 maxHeight,		sizeof(maxHeight));
+	memcpy(temp_elimCombo[depth],	 elimCombo,		sizeof(elimCombo));
+	memcpy(temp_elimTotal[depth],	 elimTotal,		sizeof(elimTotal));
+	memcpy(temp_gridInfo[depth],	 gridInfo,	 	sizeof(gridInfo));
+	memcpy(temp_deleteTotal[depth],	 deleteTotal,	sizeof(deleteTotal));
+	memcpy(temp_bonusTotal[depth],	 bonusTotal,	sizeof(bonusTotal));
 }
 
 void recover (int depth)
 {
-	memcpy(maxHeight, temp_maxHeight[depth], sizeof(maxHeight));
-	memcpy(elimCombo, temp_elimCombo[depth], sizeof(elimCombo));
-	memcpy(elimTotal, temp_elimTotal[depth], sizeof(elimTotal));
-	memcpy(gridInfo, temp_gridInfo[depth], sizeof(gridInfo));
-	memcpy(deleteTotal, temp_deleteTotal[depth], sizeof(deleteTotal));
-	memcpy(insertTotal, temp_insertTotal[depth], sizeof(insertTotal));
+	memcpy(maxHeight,	 temp_maxHeight[depth],		sizeof(maxHeight));
+	memcpy(elimCombo,	 temp_elimCombo[depth],		sizeof(elimCombo));
+	memcpy(elimTotal,	 temp_elimTotal[depth],		sizeof(elimTotal));
+	memcpy(gridInfo,	 temp_gridInfo[depth],		sizeof(gridInfo));
+	memcpy(deleteTotal,	 temp_deleteTotal[depth],	sizeof(deleteTotal));
+	memcpy(bonusTotal,	 temp_bonusTotal[depth],	sizeof(bonusTotal));
 }
 
 inline void bfs(Tetris t, vector<data> &v)
@@ -599,9 +622,12 @@ inline void bfs(Tetris t, vector<data> &v)
 				if (vis[x][y][o] && t.set(x, y, o).onGround()) v.push_back(data(x, y, o));
 }
 
-double alphabeta (int dep, double alpha, double beta, int player)
+double alphabeta (int dep, double alpha, double beta)
 {
 	if ((clock() - tim) / CLOCKS_PER_SEC > TIME_LIMIT) return -INF;
+
+	if (dep == MAXDEP)
+		return calc(currBotColor);
 
 	if (dep & 1)
 	{
@@ -613,17 +639,6 @@ double alphabeta (int dep, double alpha, double beta, int player)
 			return - 15000 + dep;
 		}
 
-		for (unsigned int i = 0; i < v.size(); i ++)
-		{
-			copy(dep);
-			Tetris block = Block[dep >> 1];
-			block.set(v[i].x, v[i].y, v[i].o).place();
-			Util::eliminate(player);
-			v[i].val = calc(player);
-			recover(dep);
-		}
-		sort(v.begin(), v.end());
-		reverse(v.begin(), v.end());
 		int sz = (int)v.size();
 
 		for (int i = 0; i < sz; i ++)
@@ -632,14 +647,14 @@ double alphabeta (int dep, double alpha, double beta, int player)
 			Tetris block = Block[dep >> 1];
 			block.set(v[i].x, v[i].y, v[i].o).place();
 			
-			Util::eliminate(player);
-			ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
+			Util::eliminate(currBotColor);
+			ret = max(ret, alphabeta(dep + 1, alpha, beta));
 			if (ret > alpha) 
 			{
 				alpha = ret;
 				if (dep == 1)
 				{
-					tmp = Result(ab_block, v[i].x, v[i].y, v[i].o);
+					tmp = Result(-1, v[i].x, v[i].y, v[i].o);
 				}
 			}
 			recover(dep);
@@ -650,23 +665,21 @@ double alphabeta (int dep, double alpha, double beta, int player)
 	}
 	else
 	{
-		if (dep == MAXDEP)
-			return calc(player ^ 1);
 		double ret = INF;
 		vector <int> enemyBlocksType;
 		int maxCount = 0, minCount = 99;
 		for (int i = 0; i < 7; i++)
 		{
-			if (typeCountForColor[player ^ 1][i] > maxCount)
-				maxCount = typeCountForColor[player ^ 1][i];
-			if (typeCountForColor[player ^ 1][i] < minCount)
-				minCount = typeCountForColor[player ^ 1][i];
+			if (typeCountForColor[currBotColor][i] > maxCount)
+				maxCount = typeCountForColor[currBotColor][i];
+			if (typeCountForColor[currBotColor][i] < minCount)
+				minCount = typeCountForColor[currBotColor][i];
 		}
 		if (maxCount - minCount == 2)
 		{
 			// 危险，找一个不是最大的块给对方吧
 			for (int i = 0; i < 7; i ++)
-				if (typeCountForColor[player ^ 1][i] != maxCount)
+				if (typeCountForColor[currBotColor][i] != maxCount)
 					enemyBlocksType.push_back(i);
 		}
 		else
@@ -676,17 +689,13 @@ double alphabeta (int dep, double alpha, double beta, int player)
 		}
 		for (unsigned int i = 0; i < enemyBlocksType.size(); i ++)
 		{
-			typeCountForColor[player ^ 1][enemyBlocksType[i]] ++;
-			Block[dep >> 1] = Tetris(enemyBlocksType[i], player ^ 1);
-			ret = min(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
-			typeCountForColor[player ^ 1][enemyBlocksType[i]] --;
+			typeCountForColor[currBotColor][enemyBlocksType[i]] ++;
+			Block[dep >> 1] = Tetris(enemyBlocksType[i], currBotColor);
+			ret = min(ret, alphabeta(dep + 1, alpha, beta));
+			typeCountForColor[currBotColor][enemyBlocksType[i]] --;
 			if (ret < beta)
 			{
 				beta = ret;
-				if (dep == 2)
-				{
-					ab_block = enemyBlocksType[i];
-				}
 			}
 			if (beta <= alpha) goto goodbye2;
 		}
@@ -695,123 +704,86 @@ double alphabeta (int dep, double alpha, double beta, int player)
 	}
 }
 
-double alphabeta2 (int dep, double alpha, double beta, int player)
+double alphabeta2 (int dep, double alpha, double beta)
 {
+	if ((clock() - tim) / CLOCKS_PER_SEC > TIME_LIMIT) return -INF;
 
-// 卡tmd时
-	if ((clock() - tim) / CLOCKS_PER_SEC > TIME_LIMIT) return -15000;
+	if (dep == MAXDEP)
+		return calc(enemyColor);
 
-// 判断当前是否已经赢了 or 输了
-	if (dep % 2 == 0)
+	if (dep & 1)
 	{
-		Util::eliminate(player);
-		Util::eliminate(player ^ 1);
-		int result = Util::transfer();
-		if (result != -1)
+		double ret = INF;
+		vector <int> enemyBlocksType;
+		int maxCount = 0, minCount = 99;
+		for (int i = 0; i < 7; i++)
 		{
-			if (result == player)
-			{
-				return 15000;
-			}
-			else
-			{
-				return -15000;
-			}
+			if (typeCountForColor[enemyColor][i] > maxCount)
+				maxCount = typeCountForColor[enemyColor][i];
+			if (typeCountForColor[enemyColor][i] < minCount)
+				minCount = typeCountForColor[enemyColor][i];
 		}
-		if (dep == MAXDEP)
+		if (maxCount - minCount == 2)
 		{
- 			return -15000;
+			// 危险，找一个不是最大的块给对方吧
+			for (int i = 0; i < 7; i ++)
+				if (typeCountForColor[enemyColor][i] != maxCount)
+					enemyBlocksType.push_back(i);
 		}
-	}
-
-// 判断当前是否是必胜 or 必败态
-	vector <data> v;
-	bfs (Block[dep - dep_pos[player]], v);
-	vector <data> v2;
-	bfs (Block[(dep ^ 1) - dep_pos[player ^ 1]], v2);
-	if (v.empty() && v2.empty())
-	{
-		return 0;
-	}
-	if (v.empty())
-	{
-		return - 15000;
-	}
-	if (v2.empty())
-	{
-		return 15000;
-	}
-
-// 预处理可给对手的方块
-	vector <int> enemyBlocksType;
-	int maxCount = 0, minCount = 99;
-	for (int i = 0; i < 7; i++)
-	{
-		if (typeCountForColor[player ^ 1][i] > maxCount)
-			maxCount = typeCountForColor[player ^ 1][i];
-		if (typeCountForColor[player ^ 1][i] < minCount)
-			minCount = typeCountForColor[player ^ 1][i];
-	}
-	if (maxCount - minCount == 2)
-	{
-		for (int i = 0; i < 7; i ++)
-			if (typeCountForColor[player ^ 1][i] != maxCount)
+		else
+		{
+			for (int i = 0; i < 7; i ++)
 				enemyBlocksType.push_back(i);
+		}
+		for (unsigned int i = 0; i < enemyBlocksType.size(); i ++)
+		{
+			typeCountForColor[enemyColor][enemyBlocksType[i]] ++;
+			Block[dep + 1 >> 1] = Tetris(enemyBlocksType[i], enemyColor);
+			ret = min(ret, alphabeta2(dep + 1, alpha, beta));
+			typeCountForColor[enemyColor][enemyBlocksType[i]] --;
+			if (ret < beta)
+			{
+				beta = ret;
+				if (dep == 1)
+				{
+					ab_block = enemyBlocksType[i];
+				}
+			}
+			if (beta <= alpha) goto Goodbye;
+		}
+	Goodbye:
+		return ret;
 	}
 	else
 	{
-		for (int i = 0; i < 7; i ++)
-			enemyBlocksType.push_back(i);
-	}
+		double ret = -INF;
+		vector <data> v;
+		Tetris block = Block[dep - 1 >> 1];
+		bfs (block, v);
 
-// alpha-beta决策
+		if (v.empty())
+		{
+			return - 15000 + dep;
+		}
 
-	double ret;
-	if (dep % 2 == 0)
-		ret = -INF;
-	else
-		ret = INF;
+		int sz = (int)v.size();
 
-	for (unsigned int k = 0; k < enemyBlocksType.size(); k ++)
-	{
-		for (unsigned int i = 0; i < v.size(); i ++)
+		for (int i = 0; i < sz; i ++)
 		{
 			copy(dep);
-			Block[dep] = Tetris(enemyBlocksType[k], player ^ 1);
-			Tetris block = Block[dep - dep_pos[player]];
 			block.set(v[i].x, v[i].y, v[i].o).place();
-
-			double new_alphabeta;
-
-			new_alphabeta = alphabeta2(dep + 1, alpha, beta, player ^ 1);
-			if (dep % 2 == 0)
+			Util::eliminate(enemyColor);
+			ret = max(ret, alphabeta2(dep + 1, alpha, beta));
+			if (ret > alpha) 
 			{
-				ret = max(ret, new_alphabeta);
-				if (ret > alpha) 
-				{
-					alpha = ret;
-					if (dep == 2)
-					{
-						Util::printField();
-						tmp = Result(enemyBlocksType[k], v[i].x, v[i].y, v[i].o);
-					}
-				}
+				alpha = ret;
 			}
-			else
-			{
-				ret = min(ret, new_alphabeta);
-				if (ret < beta)
-				{
-					beta = ret;
-				}
-			}
-			
 			recover(dep);
-			if (beta <= alpha) goto goodbye;
+			if (beta <= alpha) goto Goodbye2;
 		}
+	Goodbye2:
+		return ret;
 	}
-goodbye:
-	return ret;
 }
 
 void PRINT ()
@@ -821,8 +793,9 @@ void PRINT ()
 
 int main()
 {
-#ifdef MEKTPOY
-	freopen("in.txt", "r", stdin);
+	freopen("redinput.txt", "r", stdin);
+#ifndef _BOTZONE_ONLINE
+	cin >> landingHeightVal >> rowsRemovedVal >> rowsBonusVal >> rowTransitionsVal >> columnTransitionsVal >> numberOfHolesVal >> wellSumsVal;
 #endif
 	// 加速输入
  	tim = clock();
@@ -830,15 +803,13 @@ int main()
 	srand(time(NULL));
 	init();
 
-	cin >> A >> B >> C >> D >> E >> F >> G;
-	
 	int turnID, blockType;
 	int nextTypeForColor[2];
-	cin >> turnID;
+	scanf("%d", &turnID);
  
 	// 先读入第一回合，得到自己的颜色
 	// 双方的第一块肯定是一样的
-	cin >> blockType >> currBotColor;
+	scanf("%d%d", &blockType, &currBotColor);
 	enemyColor = 1 - currBotColor;
 	nextTypeForColor[0] = blockType;
 	nextTypeForColor[1] = blockType;
@@ -857,7 +828,7 @@ int main()
 		// 先读自己的输出，也就是自己的行为
 		// 自己的输出是自己的最后一步
 		// 然后模拟最后一步放置块
-		cin >> blockType >> x >> y >> o;
+		scanf("%d%d%d%d", &blockType, &x, &y, &o);
  
 		// 我当时把上一块落到了 x y o！
 		Tetris myBlock(currTypeForColor[currBotColor], currBotColor);
@@ -869,7 +840,8 @@ int main()
  
 		// 然后读自己的输入，也就是对方的行为
 		// 裁判给自己的输入是对方的最后一步
-		cin >> blockType >> x >> y >> o;
+		
+		scanf("%d%d%d%d", &blockType, &x, &y, &o);
  
 		// 对方当时把上一块落到了 x y o！
 		Tetris enemyBlock(currTypeForColor[enemyColor], enemyColor);
@@ -887,20 +859,17 @@ int main()
 		Util::transfer();
 	}
 
-	memset(insertTotal, 0, sizeof(insertTotal));
-	memset(deleteTotal, 0, sizeof(deleteTotal));
-	// 做出决策（你只需修改以下部分）
- 
-	// 遇事不决先输出（平台上编译不会输出）
+	memset(deleteTotal,		 0,	 sizeof(deleteTotal));
+	memset(bonusTotal,		 0,	 sizeof(bonusTotal));
+
 	Util::printField();
 
 	TIME_LIMIT = 0.49;
 	Block[0] = Tetris(nextTypeForColor[currBotColor], currBotColor);
-	for (MAXDEP = 2; MAXDEP <= 4; MAXDEP += 2)
+	for (MAXDEP = 4; MAXDEP <= 50; MAXDEP += 2)
 	{
 		tmp = Result(-1, -1, -1, -1);
-		ab_block = -1;
-		alphabeta(1, -INF, INF, currBotColor);
+		alphabeta(1, -INF, INF);
 		if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
 		{
 			ans = tmp;
@@ -917,14 +886,13 @@ int main()
 
 	TIME_LIMIT = 0.98;
 	Block[0] = Tetris(nextTypeForColor[enemyColor], enemyColor);
-	for (MAXDEP = 2; MAXDEP <= 4; MAXDEP += 2)
+	for (MAXDEP = 3; MAXDEP <= 50; MAXDEP += 2)
 	{
-		tmp = Result(-1, -1, -1, -1);
 		ab_block = -1;
-		alphabeta(1, -INF, INF, enemyColor);
+		alphabeta2(1, -INF, INF);
 		if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
 		{
-			ans.blockForEnemy = tmp.blockForEnemy;
+			ans.blockForEnemy = ab_block;
 		}
 		else
 		{

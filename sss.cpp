@@ -13,7 +13,7 @@ const double bup = 10.0;
 const double c1 = 2.0;
 const double c2 = 2.0;
 
-int G = 10, S = 6, pos = 0;
+int G = 10, S = 8, pos = 0;
 
 double A, B, C, D, E, F, H;
 
@@ -49,6 +49,8 @@ inline void Init(Particle &k, double lo, double up)
 		k.d[i] = getrand(lo, up);
 }
 
+double Best = 0.0;
+
 inline int battle(Particle k)
 {
 	int tmp;
@@ -56,6 +58,7 @@ inline int battle(Particle k)
 	auto redp = fopen("redparameter.txt", "w");
 	for (int i = 0; i < N; i++) fprintf(redp, "%.15f\n", k.d[i]);
 	fclose(redp);
+	double total = S * 7;
 	for (int i = 0; i < S; i++)
 	{
 		auto bluep = fopen("blueparameter.txt", "w");
@@ -85,6 +88,8 @@ inline int battle(Particle k)
 				ret += tmp;
 			}
 			fclose(con);
+			total --;
+			if (ret + total <= Best) return ret;
 		}
 	}
 	return ret;
@@ -98,9 +103,9 @@ void randparameter()
 	q[3] = Particle(-5.2, 1.3, 3.5, -3.4, -9.2, -9.6, -5.8);
 	q[1] = Particle(-5.5, 1.4, 3.5, -3.2, -9.3, -9.8, -4.4);
 	q[5] = Particle(-4.7, 1.2, 3.8, -3.6, -8.5, -9.1, -5.7);
-	q[6] = Particle(-5, 8, 5, -3, -2, -8, -6);
-	q[7] = Particle(-5, 8, 4, -6, -8, -5, -4);
-	q[8] = Particle(-5, 8, 10, -6, -8, -5, -10);
+	q[6] = Particle(-5.0, 1.2, 3.8, -4.0, -9.4, -8.8, -5.4);
+	q[7] = Particle(-5.0, 1.3, 3.4, -3.8, -8.8, -8.7, -5.0);
+	q[8] = Particle(-4.3, 2.1, 5.6, -3.7, -9.3, -7.5, -4.8);
 	q[9] = Particle(-2, 4, 5, -4, -6, -5, -3);
 	q[10] = Particle(-5.6, 3, 4.4, -1.5, -7.2, -4.5, -6.8);
 	q[11] = Particle(-5.6, 2, 4.4, -1.5, -7.2, -4.5, -3.0);
@@ -138,16 +143,15 @@ int main()
 {
 	double w0 = 0.9, wt = 0.4; srand(time(NULL));
 	randparameter();
-	double Best = 0.0;
 	while (true)
 	{
 		A = getrand(-6.0, -4.0);
-		B = getrand(1.0, 2.0);
-		C = getrand(3.0, 4.0);
-		D = getrand(-4.0, -3.0);
+		B = getrand(3.0, 7.0);
+		C = getrand(5.0, 20.0);
+		D = getrand(-6.0, -3.0);
 		E = getrand(-10.0, -8.0);
-		F = getrand(-10.0, -8.0);
-		H = getrand(-6.0, -4.0);
+		F = getrand(-8.0, -6.0);
+		H = getrand(-8.0, -4.0);
 		g = Particle(A, B, C, D, E, F, H);
 		double k = battle(g);
 		auto con = fopen("CON", "w");
@@ -157,8 +161,7 @@ int main()
 		{
 			Best = k;
 			auto p = fopen("Mektpoy.txt", "w");
-			fprintf(p, "%.10f %.10f %.10f %.10f %.10f %.10f %.10f\n", A, B, C, D, E, F, H);
-			cout << k;
+			fprintf(p, "%.10f %.10f %.10f %.10f %.10f %.10f %.10f\n%.1f\n", A, B, C, D, E, F, H, k);
 			fclose(p);
 		}
 	}
