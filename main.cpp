@@ -22,15 +22,15 @@ using namespace std;
 // 我所在队伍的颜色（0为红，1为蓝，仅表示队伍，不分先后）
 int currBotColor;
 int enemyColor;
-      
+
 double 
-	landingHeightVal 		= -4.552810200934285,
-	rowsRemovedVal 			= 7.802667418641120,
-	rowsBonusVal 			= 15.361816710467112,
-	rowTransitionsVal 		= -4.186484973933691,
-	columnTransitionsVal 	= -11.179071273660625,
-	numberOfHolesVal 		= -14.032872493708261,
-	wellSumsVal 			= -6.059359794490395;
+	landingHeightVal 		= -4.181410837210359,
+	rowsRemovedVal 			= 14.619075245901959,
+	rowsBonusVal 			= 40.113582084519727,
+	rowTransitionsVal 		= -3.827622489967094,
+	columnTransitionsVal 	= -11.398850915763768,
+	numberOfHolesVal 		= -11.332708093413560,
+	wellSumsVal 			= -5.892412639616567;
 
 double tim;
 int MAXDEP;
@@ -622,12 +622,12 @@ inline void bfs(Tetris t, vector<data> &v)
 				if (vis[x][y][o] && t.set(x, y, o).onGround()) v.push_back(data(x, y, o));
 }
 
-double alphabeta (int dep, double alpha, double beta)
+double alphabeta (int dep, double alpha, double beta, int player)
 {
 	if ((clock() - tim) / CLOCKS_PER_SEC > TIME_LIMIT) return -INF;
 
 	if (dep == MAXDEP)
-		return calc(currBotColor);
+		return calc(player ^ 1);
 
 	if (dep & 1)
 	{
@@ -647,14 +647,14 @@ double alphabeta (int dep, double alpha, double beta)
 			Tetris block = Block[dep >> 1];
 			block.set(v[i].x, v[i].y, v[i].o).place();
 			
-			Util::eliminate(currBotColor);
-			ret = max(ret, alphabeta(dep + 1, alpha, beta));
+			Util::eliminate(player);
+			ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
 			if (ret > alpha) 
 			{
 				alpha = ret;
 				if (dep == 1)
 				{
-					tmp = Result(-1, v[i].x, v[i].y, v[i].o);
+					tmp = Result(ab_block, v[i].x, v[i].y, v[i].o);
 				}
 			}
 			recover(dep);
@@ -670,16 +670,16 @@ double alphabeta (int dep, double alpha, double beta)
 		int maxCount = 0, minCount = 99;
 		for (int i = 0; i < 7; i++)
 		{
-			if (typeCountForColor[currBotColor][i] > maxCount)
-				maxCount = typeCountForColor[currBotColor][i];
-			if (typeCountForColor[currBotColor][i] < minCount)
-				minCount = typeCountForColor[currBotColor][i];
+			if (typeCountForColor[player ^ 1][i] > maxCount)
+				maxCount = typeCountForColor[player ^ 1][i];
+			if (typeCountForColor[player ^ 1][i] < minCount)
+				minCount = typeCountForColor[player ^ 1][i];
 		}
 		if (maxCount - minCount == 2)
 		{
 			// 危险，找一个不是最大的块给对方吧
 			for (int i = 0; i < 7; i ++)
-				if (typeCountForColor[currBotColor][i] != maxCount)
+				if (typeCountForColor[player ^ 1][i] != maxCount)
 					enemyBlocksType.push_back(i);
 		}
 		else
@@ -689,99 +689,21 @@ double alphabeta (int dep, double alpha, double beta)
 		}
 		for (unsigned int i = 0; i < enemyBlocksType.size(); i ++)
 		{
-			typeCountForColor[currBotColor][enemyBlocksType[i]] ++;
-			Block[dep >> 1] = Tetris(enemyBlocksType[i], currBotColor);
-			ret = min(ret, alphabeta(dep + 1, alpha, beta));
-			typeCountForColor[currBotColor][enemyBlocksType[i]] --;
+			typeCountForColor[player ^ 1][enemyBlocksType[i]] ++;
+			Block[dep >> 1] = Tetris(enemyBlocksType[i], player ^ 1);
+			ret = min(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
+			typeCountForColor[player ^ 1][enemyBlocksType[i]] --;
 			if (ret < beta)
 			{
 				beta = ret;
-			}
-			if (beta <= alpha) goto goodbye2;
-		}
-	goodbye2:
-		return ret;
-	}
-}
-
-double alphabeta2 (int dep, double alpha, double beta)
-{
-	if ((clock() - tim) / CLOCKS_PER_SEC > TIME_LIMIT) return -INF;
-
-	if (dep == MAXDEP)
-		return calc(enemyColor);
-
-	if (dep & 1)
-	{
-		double ret = INF;
-		vector <int> enemyBlocksType;
-		int maxCount = 0, minCount = 99;
-		for (int i = 0; i < 7; i++)
-		{
-			if (typeCountForColor[enemyColor][i] > maxCount)
-				maxCount = typeCountForColor[enemyColor][i];
-			if (typeCountForColor[enemyColor][i] < minCount)
-				minCount = typeCountForColor[enemyColor][i];
-		}
-		if (maxCount - minCount == 2)
-		{
-			// 危险，找一个不是最大的块给对方吧
-			for (int i = 0; i < 7; i ++)
-				if (typeCountForColor[enemyColor][i] != maxCount)
-					enemyBlocksType.push_back(i);
-		}
-		else
-		{
-			for (int i = 0; i < 7; i ++)
-				enemyBlocksType.push_back(i);
-		}
-		for (unsigned int i = 0; i < enemyBlocksType.size(); i ++)
-		{
-			typeCountForColor[enemyColor][enemyBlocksType[i]] ++;
-			Block[dep + 1 >> 1] = Tetris(enemyBlocksType[i], enemyColor);
-			ret = min(ret, alphabeta2(dep + 1, alpha, beta));
-			typeCountForColor[enemyColor][enemyBlocksType[i]] --;
-			if (ret < beta)
-			{
-				beta = ret;
-				if (dep == 1)
+				if (dep == 2)
 				{
 					ab_block = enemyBlocksType[i];
 				}
 			}
-			if (beta <= alpha) goto Goodbye;
+			if (beta <= alpha) goto goodbye2;
 		}
-	Goodbye:
-		return ret;
-	}
-	else
-	{
-		double ret = -INF;
-		vector <data> v;
-		Tetris block = Block[dep - 1 >> 1];
-		bfs (block, v);
-
-		if (v.empty())
-		{
-			return - 15000 + dep;
-		}
-
-		int sz = (int)v.size();
-
-		for (int i = 0; i < sz; i ++)
-		{
-			copy(dep);
-			block.set(v[i].x, v[i].y, v[i].o).place();
-			Util::eliminate(enemyColor);
-			ret = max(ret, alphabeta2(dep + 1, alpha, beta));
-			if (ret > alpha) 
-			{
-				alpha = ret;
-			}
-			recover(dep);
-			if (beta <= alpha) goto Goodbye2;
-		}
-	Goodbye2:
+	goodbye2:
 		return ret;
 	}
 }
@@ -869,7 +791,8 @@ int main()
 	for (MAXDEP = 4; MAXDEP <= 50; MAXDEP += 2)
 	{
 		tmp = Result(-1, -1, -1, -1);
-		alphabeta(1, -INF, INF);
+		ab_block = -1;
+		alphabeta(1, -INF, INF, currBotColor);
 		if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
 		{
 			ans = tmp;
@@ -886,13 +809,14 @@ int main()
 
 	TIME_LIMIT = 0.98;
 	Block[0] = Tetris(nextTypeForColor[enemyColor], enemyColor);
-	for (MAXDEP = 3; MAXDEP <= 50; MAXDEP += 2)
+	for (MAXDEP = 4; MAXDEP <= 50; MAXDEP += 2)
 	{
+		tmp = Result(-1, -1, -1, -1);
 		ab_block = -1;
-		alphabeta2(1, -INF, INF);
+		alphabeta(1, -INF, INF, enemyColor);
 		if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
 		{
-			ans.blockForEnemy = ab_block;
+			ans.blockForEnemy = tmp.blockForEnemy;
 		}
 		else
 		{
