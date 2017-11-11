@@ -497,8 +497,8 @@ int main()
 			fclose(bluein);
 		}
 
-		system("main < redinput.txt > redoutput.txt");
-		system("main < blueinput.txt > blueoutput.txt");
+		system("main_greedy < redinput.txt > redoutput.txt");
+		system("main_greedy < blueinput.txt > blueoutput.txt");
 		int a = turnID * 2, b = turnID * 2 + 1;
 
 		int redLost = 0, blueLost = 0;

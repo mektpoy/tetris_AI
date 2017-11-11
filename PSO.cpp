@@ -129,7 +129,7 @@ inline void update(Particle A,int ti)
 	{
 		for (int j = 0; j < N; j++)
 			fprintf(bestpa, "%.15f ", best[i].d[j]);
-		fprintf(bestpa, "%d\n", win[i]);
+		fprintf(bestpa, "%.1f\n", win[i]);
 	}
 	fclose(bestpa);
 }
