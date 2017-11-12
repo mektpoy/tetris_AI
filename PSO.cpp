@@ -8,8 +8,8 @@
 using namespace std;
 
 const int N = 7;
-const double blo[7] = {-6, 3, 10, -7, -10, -10, -7};
-const double bup[7] = {-1, 8, 15, -2, -5, -5, -2};
+const double blo[7] = {-6, 3, 40, -7, -10, -10, -7};
+const double bup[7] = {-1, 8, 40, -2, -5, -5, -2};
 const double c1 = 2.0;
 const double c2 = 2.0;
 const double K = 18.0;
@@ -151,7 +151,7 @@ inline void Print(Particle A, double ti)
 inline void Print_p()
 {
 	auto part = fopen("partialparameter.txt", "w");
-	for (int i = 1; i <= S; i++)
+	for (int i = 0; i < S; i++)
 	{
 		for (int j = 0; j < N; j++) fprintf(part, "%.15f ", p[i].d[j]);
 		fprintf(part, "%.1f\n", cp[i]);
