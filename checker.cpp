@@ -208,26 +208,6 @@ void init()
  
 namespace Util
 {
- 
-	// ?????????????????
-	/*
-	inline bool checkDirectDropTo(int color, int blockType, int x, int y, int o)
-	{
-		auto &def = blockShape[blockType][o];
-		for (; y <= MAPHEIGHT; y++)
-			for (int i = 0; i < 4; i++)
-			{
-				int _x = def[i * 2] + x, _y = def[i * 2 + 1] + y;
-				if (_y > MAPHEIGHT)
-					continue;
-				if (_y < 1 || _x < 1 || _x > MAPWIDTH || gridInfo[color][_y][_x])
-					return false;
-			}
-		return true;
-	}
- 	*/
-
-	// ???
 	void eliminate(int color)
 	{
 		int &count = transCount[color] = 0;
@@ -517,8 +497,8 @@ int main()
 			fclose(bluein);
 		}
 
-		system("main < redinput.txt > redoutput.txt");
-		system("main < blueinput.txt > blueoutput.txt");
+		system("main_greedy < redinput.txt > redoutput.txt");
+		system("main_greedy < blueinput.txt > blueoutput.txt");
 		int a = turnID * 2, b = turnID * 2 + 1;
 
 		int redLost = 0, blueLost = 0;

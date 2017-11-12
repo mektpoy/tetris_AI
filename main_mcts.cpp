@@ -398,7 +398,7 @@ struct Result
 
 int ab_block;
 
-bool vis[MAPWIDTH + 3][MAPHEIGHT + 3][4], vis2[MAPWIDTH + 3][MAPHEIGHT + 3][4];
+bool vis[MAPWIDTH + 3][MAPHEIGHT + 3][4];
 
 struct data{
 	int x, y, o; data(){}
@@ -454,12 +454,6 @@ int GetRowTransitions(int player)
 	return ret;
 }
 
-/**
- * The total number of column transitions.
- * A column transition occurs when an empty cell is adjacent to a filled cell
- * on the same row and vice versa.
- */
-
 int GetColumnTransitions(int player) {
 	int ret = 0;
 	int last_bit = 1;
@@ -511,8 +505,6 @@ int GetNumberOfHoles(int player)
 int GetWellSums(int player) 
 {
 	int well_sums = 0;
-	// Check for well cells in the "inner columns" of the board.
-	// "Inner columns" are the columns that aren't touching the edge of the board.
 
 	for (int i = 1; i <= MAPWIDTH; i ++)
 	{
@@ -582,7 +574,6 @@ inline void bfs(Tetris t, vector<data> &v)
 	{
 		for (int o = 0; o < 4; o++)
 		{
-			if (t.blockType == 6 && o) break;
 			for (int y = MAPHEIGHT; y; y--)
 			{
 				auto &def = blockShape[t.blockType][o];
@@ -617,148 +608,226 @@ inline void bfs(Tetris t, vector<data> &v)
 		if (t.set(k.x, k.y, k.o).rotation((k.o + 1) & 3))
 			vis[k.x][k.y][(k.o + 1) & 3] = 1, Q.push(data(k.x, k.y, (k.o + 1) & 3));
 	}
-
-	memset(vis2, 0, sizeof(vis2));
 	for (int x = 1; x <= MAPWIDTH; x++)
 		for (int y = 1; y <= MAPHEIGHT; y++)
 			for (int o = 0; o < 4; o++)
-				if (vis[x][y][o] && t.set(x, y, o).onGround())
-				{
-					bool flag = false;
-					if (t.blockType == 2 || t.blockType == 3)
-					{
-						if (o == 0)
-						{
-							if (!vis2[x][y - 1][2])
-								vis2[x][y][0] = flag = true;
-						}
-						else if (o == 1)
-						{
-							if (!vis2[x + 1][y][3])
-								vis2[x][y][1] = flag = true;
-						}
-						else if (o == 2)
-						{
-							if (!vis2[x][y + 1][0])
-								vis2[x][y][2] = flag = true;
-						}
-						else if (o == 3)
-						{
-							if (!vis2[x - 1][y][1])
-								vis2[x][y][3] = flag = true;
-						}
-					}
-					else if (t.blockType == 5)
-					{
-						if (o == 0)
-						{
-							if (!vis2[x][y + 1][2])
-								vis2[x][y][0] = flag = true;
-						}
-						else if (o == 1)
-						{
-							if (!vis2[x - 1][y][3])
-								vis2[x][y][1] = flag = true;
-						}
-						else if (o == 2)
-						{
-							if (!vis2[x][y - 1][0])
-								vis2[x][y][2] = flag = true;
-						}
-						else if (o == 3)
-						{
-							if (!vis2[x + 1][y][1])
-								vis2[x][y][3] = flag = true;
-						}
-					}
-					else flag = 1;
-					if (flag) v.push_back(data(x, y, o));
-				}
+				if (vis[x][y][o] && t.set(x, y, o).onGround()) v.push_back(data(x, y, o));
 }
 
-double alphabeta (int dep, double alpha, double beta, int player)
+
+struct Node
 {
-	if ((clock() - tim) / CLOCKS_PER_SEC > TIME_LIMIT) return -INF;
+	Node* pa;
+	vector <Node*> son;
+	int player;
+	int total, wins;
+	int x, y, o, blockType;
+}touse[400010];
+int touseptr;
 
-	if (dep == MAXDEP)
-		return calc(player ^ 1);
+Node* getnode(Node* pa, int player, int x, int y, int o, int blockType, int type)
+{
+	Node* ret = touse + (touseptr ++);
+	ret->pa = pa;
+	ret->player = player;
+	ret->x = x;
+	ret->y = y;
+	ret->o = o;
+	ret->blockType = blockType;
+	ret->type = type;
+	return ret;
+}
 
-	if (dep & 1)
+double ucb1 (Node* node)
+{
+	if (node->total == 0) return 1e30;
+	return 1.0 * node->wins / node->total + sqrt(1.96 * log(node->pa->total) / node->total);
+}
+
+Node* get_max_son(Node *node)
+{
+	Node* ret = NULL;
+	double MAX = -1e30;
+	for (int i = 0; i < node->son.size(); i ++)
 	{
-		double ret = -INF;
-		vector <data> v;
-		bfs (Block[dep >> 1], v);
-		if (v.empty())
+		double val = ucb1(node->son[i]);
+		if (val > MAX)
 		{
-			return - 15000 + dep;
+			ret = node->son[i];
+			MAX = val;
 		}
+	}
+	return ret;
+}
 
-		int sz = (int)v.size();
+//根据node给予的决策更新游戏局面
 
-		for (int i = 0; i < sz; i ++)
-		{
-			copy(dep);
-			Tetris block = Block[dep >> 1];
-			block.set(v[i].x, v[i].y, v[i].o).place();
-			
-			Util::eliminate(player);
-			ret = max(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
-			if (ret > alpha) 
-			{
-				alpha = ret;
-				if (dep == 1)
-				{
-					tmp = Result(ab_block, v[i].x, v[i].y, v[i].o);
-				}
-			}
-			recover(dep);
-			if (beta <= alpha) goto goodbye;
-		}
-	goodbye:
-		return ret;
+inline int updategame(Node *node)
+{
+	Tetris block(node->blockType, node->player);
+	typeCountForColor[node->player][node->blockType] ++;
+	block.set(node->x, node->y, node->o).place();
+	Util::eliminate(node->player);
+	if(node->player == enemyColor)
+	{
+		nextTypeForColor[node->player] = node->pa->blockType;
+		nextTypeForColor[!node->player] = node->blockType;
+		return Util::transfer();
+	}
+	return -1;
+}
+
+//扩展当前节点的所有儿子
+
+inline void extend_son(Node *&node)
+{
+	if (node->son.size()) return;
+	vector <int> enemyBlocksType;
+	int maxCount = 0, minCount = 99;
+	for (int i = 0; i < 7; i++)
+	{
+		if (typeCountForColor[!node->player][i] > maxCount)
+			maxCount = typeCountForColor[!node->player][i];
+		if (typeCountForColor[!node->player][i] < minCount)
+			minCount = typeCountForColor[!node->player][i];
+	}
+	if (maxCount - minCount == 2)
+	{
+		// 危险，找一个不是最大的块给对方吧
+		for (int i = 0; i < 7; i ++)
+			if (typeCountForColor[!node->player][i] != maxCount)
+				enemyBlocksType.push_back(i);
 	}
 	else
 	{
-		double ret = INF;
-		vector <int> enemyBlocksType;
-		int maxCount = 0, minCount = 99;
-		for (int i = 0; i < 7; i++)
+		for (int i = 0; i < 7; i ++)
+			enemyBlocksType.push_back(i);
+	}
+
+	Tetris block(nextTypeForColor[!node->player], !node->player);
+	vector <data> v;
+	bfs (block, v);
+
+	for (int i = 0; i < v.size(); i ++)
+	{
+		for (int j = 0; j < enemyBlocksType.size(); j ++)
 		{
-			if (typeCountForColor[player ^ 1][i] > maxCount)
-				maxCount = typeCountForColor[player ^ 1][i];
-			if (typeCountForColor[player ^ 1][i] < minCount)
-				minCount = typeCountForColor[player ^ 1][i];
+			Node *tmpNode = getnode(node, !node->player, v.x, v.y, v.o, enemyBlocksType[j]);
+			node->son.push_back(tmpNode);
 		}
-		if (maxCount - minCount == 2)
+	}
+}
+
+Node* selection(Node* node)
+{
+	while(true)
+	{
+		//cout << node << endl;
+		if (node->son.size() == 0)
 		{
-			// 危险，找一个不是最大的块给对方吧
-			for (int i = 0; i < 7; i ++)
-				if (typeCountForColor[player ^ 1][i] != maxCount)
-					enemyBlocksType.push_back(i);
+			extend_son(node);
+			if (node->son.size() == 0)
+			{
+				return node;
+			}
+			int id = rand() % (int)node->son.size();
+			node = node->son[id];
+			updategame(node);
+			return node;
 		}
 		else
 		{
-			for (int i = 0; i < 7; i ++)
-				enemyBlocksType.push_back(i);
+			node = get_max_son(node);
+			updategame(node);
+			if (node->total == 0) return node;
 		}
-		for (unsigned int i = 0; i < enemyBlocksType.size(); i ++)
+	}
+}
+
+//从node开始模拟到终止节点
+
+inline data greedy(Tetris t)
+{
+	vector <data> v;
+	bfs (t, v);
+	if (v.empty()) return data(-1, -1, -1);
+
+	for (unsigned int i = 0; i < v.size(); i ++)
+	{
+		copy(0);
+		t.set(v[i].x, v[i].y, v[i].o).place();
+		Util::eliminate(player);
+		v[i].val = calc(player);
+		recover(0);
+	}
+
+	sort(v.begin(), v.end());
+	reverse(v.begin(), v.end());
+	return v[0];
+}
+
+inline int simulation()
+{
+	while (true)
+	{
+		Tetris block[2];
+		data strategy[2];
+		for (int k = 0; k < 2; k ++)
 		{
-			typeCountForColor[player ^ 1][enemyBlocksType[i]] ++;
-			Block[dep >> 1] = Tetris(enemyBlocksType[i], player ^ 1);
-			ret = min(ret, alphabeta(dep + 1, alpha, beta, player ^ 1));
-			typeCountForColor[player ^ 1][enemyBlocksType[i]] --;
-			if (ret < beta)
+			block[k] = block(nextTypeForColor[k], k);
+			data strategy[k] = greedy(block[k]);
+			if (strategy[k].x == -1)
 			{
-				beta = ret;
-				if (dep == 2)
-				{
-					ab_block = enemyBlocksType[i];
-				}
+				lost[k] = 1;
+				continue;
 			}
-			if (beta <= alpha) goto goodbye2;
+			block[k].set(strategy[k].x, strategy[k].y, strategy[k].o).place();
+
+			int maxCount = 0, minCount = 99;
+			for (int i = 0; i < 7; i++)
+			{
+				if (typeCountForColor[k][i] > maxCount)
+					maxCount = typeCountForColor[k][i];
+				if (typeCountForColor[k][i] < minCount)
+					minCount = typeCountForColor[k][i];
+			}
+			if (maxCount - minCount == 2)
+			{
+				// 危险，找一个不是最大的块给对方吧
+				for (int i = 0; i < 7; i ++)
+					if (typeCountForColor[k][i] != maxCount)
+						enemyBlocksType.push_back(i);
+			}
+			else
+			{
+				for (int i = 0; i < 7; i ++)
+					enemyBlocksType.push_back(i);
+			}
+			nextTypeForColor[i] = enemyBlocksType[rand() % enemyBlocksType.size()];
 		}
-	goodbye2:
-		return ret;
+		if (lost[0] || lost[1])
+		{
+			if (lost[currBotColor]) return 0;
+			else return 1; 
+		}
+		Util::eliminate(0);
+		Util::eliminate(1);
+		result = Util::transfer();
+		if (result != -1)
+		{
+			if (result == currBotColor) return 0;
+			else return 1;
+		}
+	}
+}
+
+inline void backUp(Node* node, int result)
+{
+	while (node != NULL)
+	{
+		node->wins += (result ^ node->player);
+		node->total ++;
+		node = node->pa;
 	}
 }
 
@@ -840,54 +909,8 @@ int main()
 
 	Util::printField();
 
-	TIME_LIMIT = 0.49;
-	Block[0] = Tetris(nextTypeForColor[currBotColor], currBotColor);
-	for (MAXDEP = 4; MAXDEP <= 50; MAXDEP += 2)
-	{
-		tmp = Result(-1, -1, -1, -1);
-		ab_block = -1;
-		alphabeta(1, -INF, INF, currBotColor);
-		if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
-		{
-			ans = tmp;
-		}
-		else
-		{
-			break;
-		}
-	}
-
-#ifdef MEKTPOY
-	int first_dep = MAXDEP;
-#endif
-
-	TIME_LIMIT = 0.98;
-	Block[0] = Tetris(nextTypeForColor[enemyColor], enemyColor);
-	for (MAXDEP = 4; MAXDEP <= 50; MAXDEP += 2)
-	{
-		tmp = Result(-1, -1, -1, -1);
-		ab_block = -1;
-		alphabeta(1, -INF, INF, enemyColor);
-		if ((clock() - tim) / CLOCKS_PER_SEC < TIME_LIMIT)
-		{
-			ans.blockForEnemy = tmp.blockForEnemy;
-		}
-		else
-		{
-			break;
-		}
-	}
-
 	PRINT();
 
-#ifdef MEKTPOY
-	int second_dep = MAXDEP;
-	cout << first_dep << " " << second_dep << endl;
-#endif
-	// 再看看给对方什么好
-	
-	// 决策结束，输出结果（你只需修改以上部分）
- 
  
 	return 0;
 }

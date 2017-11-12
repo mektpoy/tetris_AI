@@ -8,12 +8,16 @@
 using namespace std;
 
 const int N = 7;
-const double blo = -10.0;
-const double bup = 10.0;
+const double blo[7] = {-6, 3, 40, -7, -10, -10, -7};
+const double bup[7] = {-1, 8, 40, -2, -5, -5, -2};
 const double c1 = 2.0;
 const double c2 = 2.0;
+const double K = 18.0;
+const int G = 60;
+const int S = 20;
+const int R = 5;
 
-int G = 2, S = 30, pos = 0;
+double cg, cp[233];
 
 struct Particle{
 	double d[N]; Particle(){}
@@ -31,9 +35,8 @@ struct Particle{
 	}
 }g, x[233], p[233], v[233],q[233];
 
+vector <double> win;
 vector <Particle> best;
-
-int cg, cp[233];
 
 inline double getrand(double lo, double up)
 {
@@ -41,31 +44,45 @@ inline double getrand(double lo, double up)
 	return lo + (up - lo) * tmp;
 }
 
-inline void Init(Particle &k, double lo, double up)
+inline double battle(Particle k, int id)
 {
-	for (int i = 0; i < N; i++)
-		k.d[i] = getrand(lo, up);
-}
-
-inline int battle(Particle k)
-{
-	int ret = 0, tmp;
-	freopen("redparameter.txt", "w", stdout);
-	for (int i = 0; i < N; i++) printf("%.15f\n", k.d[i]);
-	fclose(stdout);
-	for (int i = 0; i < S; i++)
+	int tmp;
+	double ret = 0;
+	auto redp = fopen("redparameter.txt", "w");
+	for (int i = 0; i < N; i++) fprintf(redp, "%.15f\n", k.d[i]);
+	fclose(redp);
+	double total = R * 7;
+	for (int i = 0; i < R; i++)
 	{
-		freopen("blueparameter.txt", "w", stdout);
-		for (int j = 0; j < N; j++) printf("%.15f\n", q[i].d[j]);
-		fclose(stdout);
+		auto bluep = fopen("blueparameter.txt", "w");
+		for (int j = 0; j < N; j++) 
+			fprintf(bluep, "%.15f\n", q[i].d[j]);
+		fclose(bluep);
 		for (int j = 0; j < 7; j++)
 		{
-			freopen("firstblock.txt", "w", stdout);
-			cout << j << endl; system("checker");
-			fclose(stdout);
-			freopen("result.txt", "r", stdin);
-			cin >> tmp; ret += tmp;
-			fclose(stdin);
+			auto first = fopen("firstblock.txt", "w");
+			fprintf(first, "%d\n", j);
+			fclose(first);
+			
+			system("checker");
+			
+			auto f = fopen("result.txt", "r");
+			fscanf(f, "%d", &tmp);
+			fclose(f);
+			
+			auto con = fopen("CON", "w");
+			fprintf(con, "%d\n", tmp);
+			if (tmp == 2)
+			{
+				ret += 0.5;
+			}
+			else
+			{
+				ret += tmp;
+			}
+			fclose(con);
+			total --;
+			if (ret + total <= cp[id]) return ret;
 		}
 	}
 	return ret;
@@ -73,16 +90,16 @@ inline int battle(Particle k)
 
 void randparameter()
 {
-	q[0] = Particle(-4.5, 3.4, 1.5, -3.2, -9.3, -7.8, -3.3);
-	q[1] = Particle(-1, 8, 6, -4, -10, -1, -1);
-	q[2] = Particle(-1, 8, 9, -4, -10, -8, -4);
-	q[3] = Particle(-1, 4, 2.3, -2, -3, -5, -2);
-	q[4] = Particle(-10, 1, 2.33, -5, -2, -4, -8);
-	q[5] = Particle(-4, 6, 7, -5, -2, -4, -8);
-	q[6] = Particle(-5, 8, 5, -3, -2, -8, -6);
-	q[7] = Particle(-5, 8, 4, -6, -8, -5, -4);
-	q[8] = Particle(-5, 8, 10, -6, -8, -5, -10);
-	q[9] = Particle(-2, 4, 5, -4, -6, -5, -3);
+	q[0] = Particle(-4.5, 3.4, 1.4, -3.2, -9.3, -7.9, -3.4);
+	q[1] = Particle(-7.5, 0.0, 7.5, -3.9, -10.0, -10.0, -7.0);
+	q[2] = Particle(-3.3, 4.3, 11.8, -3.3, -8.8, -6.5, -4.0);
+	q[3] = Particle(-2.7, 7.2, 14.9, -4.4, -5.5, -8.2, -2.2);
+	q[4] = Particle(-3.2, 4.9, 13.9, -3.8, -6.0, -8.2, -3.9);
+	q[5] = Particle(-4.7, 1.2, 3.8, -3.6, -8.5, -9.1, -5.7);
+	q[6] = Particle(-5.0, 1.2, 3.8, -4.0, -9.4, -8.8, -5.4);
+	q[7] = Particle(-5.0, 1.3, 3.4, -3.8, -8.8, -8.7, -5.0);
+	q[8] = Particle(-7.0, 0.0, 5.6, -3.3, -10.0, -10.0, -6.6);
+	q[9] = Particle(-3.7, 0.0, 2.3, -3.3, -5.1, -7.2, -2.0);
 	q[10] = Particle(-5.6, 3, 4.4, -1.5, -7.2, -4.5, -6.8);
 	q[11] = Particle(-5.6, 2, 4.4, -1.5, -7.2, -4.5, -3.0);
 	q[12] = Particle(-5.6, 1, 4.4, -1, -4, -7, -5);
@@ -105,36 +122,76 @@ void randparameter()
 	q[29] = Particle(-9, 4, 3.655, -5, -8, -9, -3);
 }
 
-inline void update(Particle A,int ti)
+inline void update(Particle A, double ti)
 {
-	g = A; cg = ti; best.push_back(A);
-	freopen("bestparameter.txt", "w", stdout);
+	auto bestpa = fopen("bestparameter.txt", "w");
+	g = A; cg = ti; best.push_back(g); win.push_back(cg);
 	for (int i = 0; i < best.size(); i++)
+	{
 		for (int j = 0; j < N; j++)
-			printf("%.15f\n", best[i].d[j]);
-	fclose(stdout);
+			fprintf(bestpa, "%.15f ", best[i].d[j]);
+		fprintf(bestpa, "%.1f\n", win[i]);
+	}
+	fclose(bestpa);
+}
+
+inline void Print(Particle A, double ti)
+{
+	auto bestpa = fopen("bestparameter.txt", "w");
+	best.push_back(A); win.push_back(ti);
+	for (int i = 0; i < best.size(); i++)
+	{
+		for (int j = 0; j < N; j++)
+			fprintf(bestpa, "%.15f ", best[i].d[j]);
+		fprintf(bestpa, "%.1f\n", win[i]);
+	}
+	fclose(bestpa);
+}
+
+inline void Print_p()
+{
+	auto part = fopen("partialparameter.txt", "w");
+	for (int i = 0; i < S; i++)
+	{
+		for (int j = 0; j < N; j++) fprintf(part, "%.15f ", p[i].d[j]);
+		fprintf(part, "%.1f\n", cp[i]);
+	}
+	fclose(part);
 }
 
 int main()
 {
 	double w0 = 0.9, wt = 0.4; srand(time(NULL));
-	g = Particle(-4.500158825082766, 3.4181268101392694, 1.4181268101392694,
-		-3.2178882868487753 , -9.348695305445199, -7.899265427351652, -3.3855972247263626);
+	double A = getrand(-6.0, -4.0);
+	double B = getrand(1.0, 4.0);
+	double C = getrand(3.0, 6.0);
+	double D = getrand(-6.0, -3.0);
+	double E = getrand(-10.0, -8.0);
+	double F = getrand(-8.0, -6.0);
+	double H = getrand(-8.0, -4.0);
 	
+	g = Particle(A, B, C, D, E, F, H);
 	randparameter();
-	cg = battle(g);
-	best.push_back(g);
-
+	cg = battle(g, 0);
+	update(g, cg);
+	
 	for (int i = 0; i < S; i++)
 	{
-		Init(x[i], blo, bup); p[i] = x[i];
-		Init(v[i], blo - bup, bup - blo);
-		cp[i] = battle(p[i]);
+		for (int j = 0; j < N; j++)
+			x[i].d[j] = getrand(blo[j], bup[j]),
+			v[i].d[j] = getrand(blo[j] - bup[j], bup[j] - blo[j]);
+		p[i] = x[i]; cp[i] = battle(p[i], i);
 		if (cp[i] > cg) update(p[i], cp[i]);
+		else if (cp[i] >= K) Print(p[i], cp[i]);
 	}
-
+	
+	Print_p();
+	
 	for (int total = 0; total < G; total++)
 	{
+		auto rod = fopen("Round.txt", "w");
+		fprintf(rod, "%d", total);
+		fclose(rod);
 		double w = (w0 - wt) * (G - total) / G + wt;
 		for (int i = 0; i < S; i++)
 		{
@@ -144,13 +201,14 @@ int main()
 				v[i].d[j] = w * v[i].d[j] + c1 * A * (p[i].d[j] - x[i].d[j]) + c2 * B * (g.d[j] - x[i].d[j]);
 			}
 			x[i] = x[i] + v[i];
-			for (int j = 0; j < N; j++) x[i].d[j] = max(x[i].d[j], blo), x[i].d[j] = min(x[i].d[j], bup);
-			int now = battle(x[i]);
+			double now = battle(x[i], i);
 			if (now > cp[i])
 			{
-				cp[i] = now; p[i] = x[i];
+				cp[i] = now; p[i] = x[i]; Print_p();
 				if (cp[i] > cg) update(p[i], cp[i]);
+				else if (cp[i] >= K) Print(p[i], cp[i]);
 			}
 		}
 	}
+	return 0;
 }
